@@ -7,11 +7,10 @@ import javafx.scene.text.FontWeight;
 
 /**
  * Окружение переднего плана:
- * - Заезды во дворы перерисованы строго по оригинальному эскизу:
- *   тёмно-серый асфальт (#4a4d52), уходящий под углом вниз прямо к дороге,
- *   с чёрным контуром и бордюрной фаской (как на оригинальном рисунке!).
- * - Сетка плитки тротуара доходит ровно до границы дворов.
- * - Урны, лавочка, земляные холмики и дорога с разметкой.
+ * - Заезды во дворы: аккуратный тёмно-серый асфальт, плавно стыкующийся с дорогой и домами
+ * - Земляные насыпи (холмики) — цвет #dd9571 с чёрным контуром
+ * - Зелёная лавочка, серые урны с текстом "УРНА"
+ * - Дорога с разметкой
  */
 public class ForegroundEnvironment implements Drawable {
     private final double width;
@@ -28,7 +27,10 @@ public class ForegroundEnvironment implements Drawable {
 
     @Override
     public void draw(GraphicsContext gc, double time) {
-        // 1. Тротуарная зона
+        // 1. Асфальтовые проезды во дворы между домами
+        drawCourtyardDriveways(gc);
+
+        // 2. Тротуарная зона
         gc.setFill(Color.web("#8e9196"));
         gc.fillRect(0, sidewalkTopY, width, roadTopY - sidewalkTopY);
 
@@ -43,13 +45,17 @@ public class ForegroundEnvironment implements Drawable {
             gc.strokeLine(0, y, width, y);
         }
         for (double x = -10; x < width + 40; x += 15) {
+            // Пропускаем штриховку плитки поверх проездов во дворы
+            if ((x >= 120 && x <= 185) || (x >= 855 && x <= 925)) {
+                continue;
+            }
             gc.strokeLine(x, sidewalkTopY, x - 18, roadTopY);
         }
 
-        // 2. Заезды во дворы строго как на концепте художника (нарисованы поверх плитки тротуара)
+        // Перерисовываем проезды во дворы поверх плитки, чтобы границы были четкими
         drawCourtyardDriveways(gc);
 
-        // 3. Бордюрный камень вдоль всей дороги
+        // 3. Бордюрный камень вдоль проезжей части
         gc.setFill(Color.web("#505359"));
         gc.fillRect(0, roadTopY, width, 5);
         gc.setStroke(Color.BLACK);
@@ -57,11 +63,11 @@ public class ForegroundEnvironment implements Drawable {
         gc.strokeLine(0, roadTopY, width, roadTopY);
         gc.strokeLine(0, roadTopY + 5, width, roadTopY + 5);
 
-        // 4. Проезжая часть дороги
+        // 4. Проезжая часть
         gc.setFill(Color.web("#303236"));
         gc.fillRect(0, roadTopY + 5, width, height - (roadTopY + 5));
 
-        // Белая разметка по центру дороги
+        // Белая разметка по центру
         gc.setStroke(Color.WHITE);
         gc.setLineWidth(4.0);
         double markY = roadTopY + 30;
@@ -70,12 +76,12 @@ public class ForegroundEnvironment implements Drawable {
             gc.strokeLine(dx, markY, dx + 65, markY);
         }
 
-        // Край дороги
+        // Нижний край дороги
         gc.setStroke(Color.web("#141414"));
         gc.setLineWidth(2.5);
         gc.strokeLine(0, height - 8, width, height - 8);
 
-        // 5. Островки насыпей/газонов
+        // 5. Островки насыпей/газонов (коричнево-рыжие как на концепте)
         drawMounds(gc);
 
         // 6. Скамейка
@@ -89,37 +95,38 @@ public class ForegroundEnvironment implements Drawable {
     }
 
     private void drawCourtyardDriveways(GraphicsContext gc) {
-        // Тёмно-серый асфальт заезда во двор (#4d5057) с жирной чёрной окантовкой
-        gc.setFill(Color.web("#4d5057"));
+        gc.setFill(Color.web("#42454a"));
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(2.2);
 
-        // Левый заезд во двор (в точности повторяет контур концепта: полигон от домов вниз через весь тротуар до дороги)
-        double[] leftX = {149, 184, 172, 115};
-        double[] leftY = {sidewalkTopY - 75, sidewalkTopY - 75, roadTopY, roadTopY};
+        // Левый заезд во двор (между крайним левым домом и вторым)
+        double[] leftX = {149, 184, 168, 126};
+        double[] leftY = {sidewalkTopY - 70, sidewalkTopY - 70, roadTopY, roadTopY};
         gc.fillPolygon(leftX, leftY, 4);
         gc.strokePolygon(leftX, leftY, 4);
 
-        // Светлая боковая грань тротуара у левого заезда (фаска бордюра)
-        gc.setFill(Color.web("#b0b5be"));
-        double[] leftEdgeX = {149, 153, 119, 115};
-        double[] leftEdgeY = {sidewalkTopY - 75, sidewalkTopY - 75, roadTopY, roadTopY};
-        gc.fillPolygon(leftEdgeX, leftEdgeY, 4);
-        gc.strokePolygon(leftEdgeX, leftEdgeY, 4);
-
-        // Правый заезд во двор (в точности по концепту: уходит вправо-вниз)
-        double[] rightX = {856, 891, 928, 865};
-        double[] rightY = {sidewalkTopY - 75, sidewalkTopY - 75, roadTopY, roadTopY};
-        gc.setFill(Color.web("#4d5057"));
+        // Правый заезд во двор (между четвёртым и правым домом)
+        double[] rightX = {856, 891, 915, 873};
+        double[] rightY = {sidewalkTopY - 70, sidewalkTopY - 70, roadTopY, roadTopY};
         gc.fillPolygon(rightX, rightY, 4);
         gc.strokePolygon(rightX, rightY, 4);
 
-        // Светлая боковая грань тротуара у правого заезда
-        gc.setFill(Color.web("#b0b5be"));
-        double[] rightEdgeX = {856, 860, 869, 865};
-        double[] rightEdgeY = {sidewalkTopY - 75, sidewalkTopY - 75, roadTopY, roadTopY};
-        gc.fillPolygon(rightEdgeX, rightEdgeY, 4);
-        gc.strokePolygon(rightEdgeX, rightEdgeY, 4);
+        // Бордюрные скосы по бокам заездов
+        gc.setFill(Color.web("#6c7178"));
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(1.4);
+
+        // Левый скос бордюра
+        double[] leftBevelX = {149, 153, 130, 126};
+        double[] leftBevelY = {sidewalkTopY - 70, sidewalkTopY - 70, roadTopY, roadTopY};
+        gc.fillPolygon(leftBevelX, leftBevelY, 4);
+        gc.strokePolygon(leftBevelX, leftBevelY, 4);
+
+        // Правый скос бордюра
+        double[] rightBevelX = {887, 891, 915, 911};
+        double[] rightBevelY = {sidewalkTopY - 70, sidewalkTopY - 70, roadTopY, roadTopY};
+        gc.fillPolygon(rightBevelX, rightBevelY, 4);
+        gc.strokePolygon(rightBevelX, rightBevelY, 4);
     }
 
     private void drawMounds(GraphicsContext gc) {
