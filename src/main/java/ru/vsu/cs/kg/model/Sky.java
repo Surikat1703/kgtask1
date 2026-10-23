@@ -2,43 +2,38 @@ package ru.vsu.cs.kg.model;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.CycleMethod;
-import javafx.scene.paint.LinearGradient;
-import javafx.scene.paint.RadialGradient;
-import javafx.scene.paint.Stop;
+import javafx.scene.shape.ArcType;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 /**
- * Небо со случайно расположенными и мерцающими звёздами и Луной с кратерами.
- * Использует примитивы:
- * - Прямоугольник с градиентом (LinearGradient) для ночного неба
- * - Эллипсы/круги для Луны и кратеров (fillOval, strokeOval)
- * - Радиальный градиент (RadialGradient) для свечения Луны
- * - Точки/маленькие эллипсы со случайной яркостью для звёзд
+ * Небо точь-в-точь по концепту:
+ * - Глубокий ровный тёмно-синий/чёрно-синий цвет (#0e1329)
+ * - Луна: круглая, серая (#d5d8de), с 7 кратерами в точных координатах эскиза
+ * - Звёзды: мелкие точки (#ffffff) случайного расположения и количества, мерцающие по синусоиде
  */
 public class Sky implements Drawable {
     private final double width;
     private final double height;
-    private final double moonX;
-    private final double moonY;
-    private final double moonRadius;
+    private final double moonCenterX = 212.0;
+    private final double moonCenterY = 56.0;
+    private final double moonRadius = 22.0;
     private final List<Star> stars = new ArrayList<>();
 
     public static class Star {
-        public double x;
-        public double y;
-        public double size;
-        public double blinkSpeed;
-        public double phase;
+        double x;
+        double y;
+        double size;
+        double speed;
+        double phase;
 
-        public Star(double x, double y, double size, double blinkSpeed, double phase) {
+        public Star(double x, double y, double size, double speed, double phase) {
             this.x = x;
             this.y = y;
             this.size = size;
-            this.blinkSpeed = blinkSpeed;
+            this.speed = speed;
             this.phase = phase;
         }
     }
@@ -46,17 +41,17 @@ public class Sky implements Drawable {
     public Sky(double width, double height, int starCount, Random rng) {
         this.width = width;
         this.height = height;
-        // Фиксированное положение Луны согласно эскизу (в левой верхней части)
-        this.moonX = width * 0.20;
-        this.moonY = height * 0.12;
-        this.moonRadius = 30.0;
 
         // Генерация случайных звёзд по небу
         for (int i = 0; i < starCount; i++) {
             double sx = rng.nextDouble() * width;
-            double sy = rng.nextDouble() * (height * 0.65); // Звёзды в верхней части неба
-            double size = 1.0 + rng.nextDouble() * 2.2;
-            double speed = 1.5 + rng.nextDouble() * 4.0;
+            double sy = rng.nextDouble() * 250.0; // небо до крыш домов
+            // Исключаем попадание прямо внутрь диска луны
+            if (Math.hypot(sx - moonCenterX, sy - moonCenterY) < moonRadius + 4) {
+                continue;
+            }
+            double size = 1.0 + rng.nextDouble() * 1.5;
+            double speed = 1.0 + rng.nextDouble() * 3.5;
             double phase = rng.nextDouble() * Math.PI * 2;
             stars.add(new Star(sx, sy, size, speed, phase));
         }
@@ -64,63 +59,42 @@ public class Sky implements Drawable {
 
     @Override
     public void draw(GraphicsContext gc, double time) {
-        // 1. Градиент ночного неба
-        LinearGradient skyGrad = new LinearGradient(
-                0, 0, 0, height * 0.7, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.web("#070913")),
-                new Stop(0.5, Color.web("#0d1326")),
-                new Stop(1.0, Color.web("#171b30"))
-        );
-        gc.setFill(skyGrad);
+        // 1. Цвет неба концепта: плотный глубокий ночной цвет
+        gc.setFill(Color.web("#0e1329"));
         gc.fillRect(0, 0, width, height);
 
-        // 2. Отрисовка мерцающих звёзд
-        for (Star star : stars) {
-            double brightness = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(time * star.blinkSpeed + star.phase));
-            gc.setFill(Color.rgb(240, 245, 255, brightness));
-            gc.fillOval(star.x, star.y, star.size, star.size);
-            // Если звезда крупная — рисуем лёгкие лучики (крестик) линиями
-            if (star.size > 2.6 && brightness > 0.8) {
-                gc.setStroke(Color.rgb(255, 255, 255, brightness * 0.4));
-                gc.setLineWidth(0.8);
-                gc.strokeLine(star.x - 2, star.y + star.size / 2, star.x + star.size + 2, star.y + star.size / 2);
-                gc.strokeLine(star.x + star.size / 2, star.y - 2, star.x + star.size / 2, star.y + star.size + 2);
-            }
+        // 2. Звёзды (случайное положение, мерцание)
+        for (Star s : stars) {
+            double alpha = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(time * s.speed + s.phase));
+            gc.setFill(Color.rgb(255, 255, 255, alpha));
+            gc.fillOval(s.x, s.y, s.size, s.size);
         }
 
-        // 3. Свечение Луны (Радиальный градиент)
-        double haloRadius = moonRadius * 2.5;
-        RadialGradient moonHalo = new RadialGradient(
-                0, 0, moonX, moonY, haloRadius, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.rgb(220, 230, 245, 0.45)),
-                new Stop(0.5, Color.rgb(200, 215, 240, 0.15)),
-                new Stop(1.0, Color.TRANSPARENT)
-        );
-        gc.setFill(moonHalo);
-        gc.fillOval(moonX - haloRadius, moonY - haloRadius, haloRadius * 2, haloRadius * 2);
-
-        // 4. Тело Луны (fillOval)
-        gc.setFill(Color.web("#e1e5ea"));
-        gc.fillOval(moonX - moonRadius, moonY - moonRadius, moonRadius * 2, moonRadius * 2);
+        // 3. Луна (fillOval) в фиксированном положении
+        gc.setFill(Color.web("#d7dadf"));
+        gc.fillOval(moonCenterX - moonRadius, moonCenterY - moonRadius, moonRadius * 2, moonRadius * 2);
 
         // Контур Луны
-        gc.setStroke(Color.web("#9aa4b2"));
-        gc.setLineWidth(1.5);
-        gc.strokeOval(moonX - moonRadius, moonY - moonRadius, moonRadius * 2, moonRadius * 2);
+        gc.setStroke(Color.web("#10121a"));
+        gc.setLineWidth(1.2);
+        gc.strokeOval(moonCenterX - moonRadius, moonCenterY - moonRadius, moonRadius * 2, moonRadius * 2);
 
-        // Кратеры на Луне
-        gc.setFill(Color.web("#c4cbd4"));
-        gc.fillOval(moonX - 8, moonY - 10, 10, 8);
-        gc.fillOval(moonX + 6, moonY - 4, 12, 11);
-        gc.fillOval(moonX - 12, moonY + 7, 14, 9);
-        gc.fillOval(moonX + 4, moonY + 12, 7, 7);
-        gc.fillOval(moonX - 2, moonY + 2, 5, 5);
+        // Кратеры Луны как на эскизе (серо-голубоватые пятна)
+        gc.setFill(Color.web("#b8bdc7"));
+        gc.fillOval(moonCenterX - 9, moonCenterY - 11, 6.5, 6.0);
+        gc.fillOval(moonCenterX - 14, moonCenterY - 2, 7.5, 7.0);
+        gc.fillOval(moonCenterX - 6, moonCenterY + 4, 8.5, 8.0);
+        gc.fillOval(moonCenterX + 4, moonCenterY - 8, 6.0, 5.5);
+        gc.fillOval(moonCenterX + 5, moonCenterY + 2, 7.0, 6.5);
+        gc.fillOval(moonCenterX - 4, moonCenterY - 5, 4.5, 4.0);
+        gc.fillOval(moonCenterX + 9, moonCenterY + 9, 4.5, 4.0);
 
-        // Тонкие ободки кратеров
-        gc.setStroke(Color.web("#b1b9c4"));
-        gc.setLineWidth(0.8);
-        gc.strokeOval(moonX - 8, moonY - 10, 10, 8);
-        gc.strokeOval(moonX + 6, moonY - 4, 12, 11);
-        gc.strokeOval(moonX - 12, moonY + 7, 14, 9);
+        // Тонкие внутренние тени кратеров
+        gc.setStroke(Color.web("#9ea4b0"));
+        gc.setLineWidth(0.6);
+        gc.strokeOval(moonCenterX - 9, moonCenterY - 11, 6.5, 6.0);
+        gc.strokeOval(moonCenterX - 14, moonCenterY - 2, 7.5, 7.0);
+        gc.strokeOval(moonCenterX - 6, moonCenterY + 4, 8.5, 8.0);
+        gc.strokeOval(moonCenterX + 5, moonCenterY + 2, 7.0, 6.5);
     }
 }

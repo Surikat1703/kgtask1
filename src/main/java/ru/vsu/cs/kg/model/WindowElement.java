@@ -7,22 +7,23 @@ import javafx.scene.shape.ArcType;
 import java.util.Random;
 
 /**
- * Окно хрущёвки.
- * Каждое окно имеет:
- * - Случайный тип формы (из 3 видов):
- *     1. TYPE_TWO_LEAF: двустворчатое окно (створка слева и форточка/большая справа)
- *     2. TYPE_THREE_LEAF: трёхстворчатое окно со средней широкой створкой
- *     3. TYPE_ARCH_CURTAIN: окно с декоративной полукруглой аркой/шторой сверху (использование arc!)
- * - Случайный цвет света:
- *     - Тёмно-синий (выключен свет / синеватый отсвет ночи)
- *     - Фиолетовый / маджента (фитолампа для рассады / неоновый свет)
- *     - Тёплый жёлтый / янтарный (уютный домашний свет)
+ * Окно хрущёвки точь-в-точь по концепту:
+ * - Чёрный толстый контур вокруг окна
+ * - Белая внутренняя рама (контур и переплёты)
+ * - 3 случайные формы (одно из требований):
+ *     1. Трёхстворчатое окно с двумя вертикальными белыми полосами и верхней фрамугой (как на концепте!)
+ *     2. Двустворчатое окно с вертикальной стойкой и форточкой
+ *     3. Окно с арочной фрамугой сверху (использование примитива ARC!)
+ * - Случайный цвет внутри (одно из требований):
+ *     - Тёмно-синий: #0a0b2a
+ *     - Фиолетовый / маджента: #b545be
+ *     - Жёлтый: #fde802
  */
 public class WindowElement {
     public enum WindowType {
-        TWO_LEAF,
-        THREE_LEAF,
-        ARCH_CURTAIN
+        CONCEPT_TRIPLE,   // 3 створки (оригинал эскиза)
+        DOUBLE_CASEMENT,  // 2 створки + форточка
+        ARCH_FRAME        // Арочный свод (arc)
     }
 
     private final double relX;
@@ -30,8 +31,7 @@ public class WindowElement {
     private final double width;
     private final double height;
     private final WindowType type;
-    private final Color lightColor;
-    private final boolean hasCurtain;
+    private final Color glassColor;
 
     public WindowElement(double relX, double relY, double width, double height, Random rng) {
         this.relX = relX;
@@ -39,101 +39,73 @@ public class WindowElement {
         this.width = width;
         this.height = height;
 
-        // Выбор одного из трёх типов
+        // Выбор случайной формы из 3-х
         int t = rng.nextInt(3);
         if (t == 0) {
-            this.type = WindowType.TWO_LEAF;
+            this.type = WindowType.CONCEPT_TRIPLE;
         } else if (t == 1) {
-            this.type = WindowType.THREE_LEAF;
+            this.type = WindowType.DOUBLE_CASEMENT;
         } else {
-            this.type = WindowType.ARCH_CURTAIN;
+            this.type = WindowType.ARCH_FRAME;
         }
 
-        // Случайный цвет света: тёмно-синий, фиолетовый или жёлтый
+        // Выбор случайного цвета из 3-х (тёмно-синий, фиолетовый, жёлтый)
         int c = rng.nextInt(3);
         if (c == 0) {
-            // Тёмно-синий (почти тёмное окно / ночной отсвет)
-            this.lightColor = Color.rgb(18, 32, 68);
+            this.glassColor = Color.web("#0e1236"); // тёмно-синий
         } else if (c == 1) {
-            // Фиолетовый (фитолампа на подоконнике)
-            this.lightColor = Color.rgb(180, 80, 215);
+            this.glassColor = Color.web("#be3ec9"); // фиолетовый
         } else {
-            // Тёплый жёлтый
-            this.lightColor = Color.rgb(255, 215, 64);
+            this.glassColor = Color.web("#ffe600"); // ярко-жёлтый
         }
-
-        this.hasCurtain = rng.nextBoolean();
     }
 
     public void draw(GraphicsContext gc, double baseX, double baseY) {
         double x = baseX + relX;
         double y = baseY + relY;
 
-        // Внешняя тёмная окантовка/ниша окна
-        gc.setFill(Color.web("#1c1c1f"));
-        gc.fillRect(x - 2, y - 2, width + 4, height + 4);
-
-        // Подоконник (линия / узкий прямоугольник)
-        gc.setFill(Color.web("#75777a"));
-        gc.fillRect(x - 3, y + height, width + 6, 2.5);
-
-        // Рама окна (белая/светло-серая)
-        gc.setFill(Color.web("#e6ebed"));
+        // 1. Чёрная внешняя обводка / ниша (как на эскизе)
+        gc.setFill(Color.BLACK);
         gc.fillRect(x, y, width, height);
 
-        // Светящееся стекло
-        double innerPad = 2.0;
-        double glassW = width - innerPad * 2;
-        double glassH = height - innerPad * 2;
-        gc.setFill(lightColor);
-        gc.fillRect(x + innerPad, y + innerPad, glassW, glassH);
+        // 2. Внутреннее светящееся стекло
+        double pad = 1.6;
+        double gw = width - pad * 2;
+        double gh = height - pad * 2;
 
-        // Рисование створок в зависимости от формы окна
-        gc.setStroke(Color.web("#222326"));
-        gc.setLineWidth(1.2);
+        gc.setFill(glassColor);
+        gc.fillRect(x + pad, y + pad, gw, gh);
 
-        if (type == WindowType.TWO_LEAF) {
-            // Двустворчатое окно: вертикальный импост и форточка в правой части
-            double splitX = x + innerPad + glassW * 0.42;
-            gc.strokeLine(splitX, y + innerPad, splitX, y + innerPad + glassH);
-            // Горизонтальная форточка справа
-            double fortY = y + innerPad + glassH * 0.35;
-            gc.strokeLine(splitX, fortY, x + innerPad + glassW, fortY);
+        // 3. Белая оконная рама и переплёты (толстая белая линия)
+        gc.setStroke(Color.WHITE);
+        gc.setLineWidth(1.8);
 
-        } else if (type == WindowType.THREE_LEAF) {
-            // Трёхстворчатое окно: две вертикальные перемычки
-            double w1 = glassW / 3.0;
-            gc.strokeLine(x + innerPad + w1, y + innerPad, x + innerPad + w1, y + innerPad + glassH);
-            gc.strokeLine(x + innerPad + 2 * w1, y + innerPad, x + innerPad + 2 * w1, y + innerPad + glassH);
-            // Горизонтальная перекладина сверху
-            gc.strokeLine(x + innerPad, y + innerPad + glassH * 0.3, x + innerPad + glassW, y + innerPad + glassH * 0.3);
+        // Внутренняя белая рамка
+        gc.strokeRect(x + pad + 0.5, y + pad + 0.5, gw - 1.0, gh - 1.0);
+
+        if (type == WindowType.CONCEPT_TRIPLE) {
+            // Оригинальная форма с эскиза: две вертикальные белые стойки
+            double col1 = x + pad + gw * 0.33;
+            double col2 = x + pad + gw * 0.67;
+            gc.strokeLine(col1, y + pad, col1, y + pad + gh);
+            gc.strokeLine(col2, y + pad, col2, y + pad + gh);
+            // Горизонтальная линия форточки сверху
+            double row1 = y + pad + gh * 0.35;
+            gc.strokeLine(col1, row1, col2, row1);
+
+        } else if (type == WindowType.DOUBLE_CASEMENT) {
+            // Вторая форма: двустворчатое окно с форточкой в правой створке
+            double mid = x + pad + gw * 0.45;
+            gc.strokeLine(mid, y + pad, mid, y + pad + gh);
+            double fortY = y + pad + gh * 0.40;
+            gc.strokeLine(mid, fortY, x + pad + gw, fortY);
 
         } else {
-            // Окно с аркой / декоративным полукруглым сводом (примитив ARC!)
-            // Рисуем арку шторы/фрамуги в верхней части
-            gc.setFill(Color.rgb(20, 20, 25, 0.45));
-            gc.fillArc(x + innerPad, y + innerPad - glassH * 0.2, glassW, glassH * 0.8, 180, 180, ArcType.CHORD);
-            gc.strokeArc(x + innerPad, y + innerPad - glassH * 0.2, glassW, glassH * 0.8, 180, 180, ArcType.CHORD);
-
-            // Т-образная рама
-            double midX = x + innerPad + glassW / 2.0;
-            gc.strokeLine(midX, y + innerPad, midX, y + innerPad + glassH);
-            gc.strokeLine(x + innerPad, y + innerPad + glassH * 0.4, x + innerPad + glassW, y + innerPad + glassH * 0.4);
+            // Третья форма: арочный верх с использованием примитива ARC
+            gc.setLineWidth(1.5);
+            gc.strokeArc(x + pad + 1, y + pad + 1, gw - 2, gh * 0.75, 0, 180, ArcType.OPEN);
+            double mid = x + pad + gw * 0.5;
+            gc.strokeLine(mid, y + pad + gh * 0.35, mid, y + pad + gh);
         }
-
-        // Шторы/жалюзи при включенном свете (если есть)
-        if (hasCurtain && (lightColor.getGreen() > 0.3 || lightColor.getRed() > 0.5)) {
-            gc.setStroke(Color.rgb(50, 40, 40, 0.5));
-            gc.setLineWidth(0.8);
-            // Несколько горизонтальных линий жалюзи
-            for (double ly = y + innerPad + 3; ly < y + innerPad + glassH * 0.5; ly += 3.5) {
-                gc.strokeLine(x + innerPad + 1, ly, x + innerPad + glassW - 1, ly);
-            }
-        }
-
-        // Тонкий внутренний контур стекла
-        gc.setStroke(Color.web("#38393d"));
-        gc.setLineWidth(0.8);
-        gc.strokeRect(x + innerPad, y + innerPad, glassW, glassH);
     }
 }

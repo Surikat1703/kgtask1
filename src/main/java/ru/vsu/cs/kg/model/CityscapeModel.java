@@ -7,104 +7,78 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Главный фасад сцены (CityscapeModel), объединяющий все объектные слои рисунка:
- * - Небо, звезды, луна
- * - Задний и передний ряды хрущёвок
- * - Дорожная инфраструктура и тротуары
- * - Фонарные столбы с независимым мерцанием
- * - Уличная мебель (лавочки, урны)
- * - Анимированный автомобиль
+ * Модель сцены ночного микрорайона хрущёвок.
+ * Полностью повторяет композицию эскиза концепта (1024 x 484):
+ * - Небо со звёздами и Луной
+ * - Задний план: дома в проёмах
+ * - Передний план: ряд одинаковых серых хрущёвок (6 этажей) со случайными окнами 3-х форм и 3-х цветов
+ * - Тротуарная плитка, проезды во дворы, бордюр и дорога с разметкой
+ * - Островки насыпей/газонов, зелёная лавочка, урны
+ * - Фонарные столбы с мерцанием
+ * - Проезжающий синий автомобиль
  */
 public class CityscapeModel implements Drawable {
-    private final double width;
-    private final double height;
-    private final List<Drawable> backgroundLayers = new ArrayList<>();
-    private final List<Drawable> buildingLayers = new ArrayList<>();
-    private final List<Drawable> foregroundLayers = new ArrayList<>();
+    public static final double WIDTH = 1024.0;
+    public static final double HEIGHT = 484.0;
 
-    public CityscapeModel(double width, double height) {
-        this.width = width;
-        this.height = height;
+    private final List<Drawable> layers = new ArrayList<>();
+
+    public CityscapeModel() {
         regenerate();
     }
 
-    /**
-     * Динамическая генерация изображения: при каждом вызове (или перезапуске)
-     * генерируется уникальное случайное расположение звёзд, окон разной формы и цветов.
-     */
     public void regenerate() {
-        backgroundLayers.clear();
-        buildingLayers.clear();
-        foregroundLayers.clear();
-
+        layers.clear();
         Random rng = new Random();
 
-        // 1. Небо со случайным количеством звёзд (от 90 до 150)
-        int starCount = 90 + rng.nextInt(60);
-        Sky sky = new Sky(width, height, starCount, rng);
-        backgroundLayers.add(sky);
+        // 1. Небо (фиксированная Луна с кратерами, случайные мерцающие звёзды)
+        int starCount = 110 + rng.nextInt(50);
+        layers.add(new Sky(WIDTH, HEIGHT, starCount, rng));
 
-        // Расчёт геометрии города
-        double groundY = height * 0.76;
-        double sidewalkTopY = groundY - 30;
-        double houseH = height * 0.38;
-        double houseY = sidewalkTopY - houseH;
+        // Геометрия переднего плана
+        double sidewalkTopY = 442.0;
+        double roadTopY = 462.0;
+        double houseH = 182.0;
+        double houseY = sidewalkTopY - houseH; // 260.0
 
-        // 2. Задний план: дома вдалеке в проёмах между передними домами
-        // Дом в левом проёме
-        Khrushchevka bgLeft = new Khrushchevka(135, houseY - 15, 80, houseH, 5, 2, "ул. Мира, 12", rng);
-        // Дом в правом проёме
-        Khrushchevka bgRight = new Khrushchevka(width - 215, houseY - 15, 80, houseH, 5, 2, "ул. Ленина, 5", rng);
-        buildingLayers.add(bgLeft);
-        buildingLayers.add(bgRight);
+        // 2. Дома вдалеке в проёмах (задний план)
+        // Левый дальний пролёт (между домом 1 и домом 2)
+        layers.add(new Khrushchevka(150, houseY - 5, 33, houseH + 5, 1, rng));
+        // Правый дальний пролёт (между домом 3 и домом 4)
+        layers.add(new Khrushchevka(858, houseY - 5, 33, houseH + 5, 1, rng));
 
-        // 3. Передний план: 3 больших дома хрущевки во всю ширину как на эскизе
-        double houseW = (width - 40) / 3.0; // ширина каждого из 3 фасадов
-        Khrushchevka house1 = new Khrushchevka(10, houseY, houseW - 10, houseH, 5, 5, "пр. Революции, 1", rng);
-        Khrushchevka house2 = new Khrushchevka(15 + houseW, houseY, houseW - 10, houseH, 5, 5, "пр. Революции, 3", rng);
-        Khrushchevka house3 = new Khrushchevka(20 + 2 * houseW, houseY, houseW - 10, houseH, 5, 5, "пр. Революции, 5", rng);
-        buildingLayers.add(house1);
-        buildingLayers.add(house2);
-        buildingLayers.add(house3);
+        // 3. Передний ряд хрущёвок (1-в-1 по концепту):
+        // Дом 1 (крайний слева): x=3, w=145, 7 стояков окон
+        layers.add(new Khrushchevka(3, houseY, 145, houseH, 7, rng));
 
-        // 4. Дорога и тротуары
-        RoadAndSidewalk roadAndSidewalk = new RoadAndSidewalk(width, height, sidewalkTopY, groundY);
-        foregroundLayers.add(roadAndSidewalk);
+        // Дом 2 (слева от центра): x=184, w=170, 8 стояков окон
+        layers.add(new Khrushchevka(184, houseY, 170, houseH, 8, rng));
 
-        // 5. Уличная мебель: лавочка по центру, урны около домов и лавочки
-        double benchX = width * 0.5 - 30;
-        double benchY = groundY - 26;
-        double[] trashPositions = {120, width * 0.38, width * 0.62, width - 120};
-        StreetFurniture furniture = new StreetFurniture(benchX, benchY, trashPositions, groundY - 26);
-        foregroundLayers.add(furniture);
+        // Дом 3 (центральный): x=357, w=319, 16 стояков окон
+        layers.add(new Khrushchevka(357, houseY, 319, houseH, 16, rng));
 
-        // 6. Фонари на переднем плане со случайной периодичностью мерцания
-        double[] lanternXPositions = {
-                houseW * 0.3,
-                houseW * 0.85,
-                houseW * 1.5,
-                houseW * 2.15,
-                houseW * 2.7
-        };
-        for (double lx : lanternXPositions) {
-            Lantern lantern = new Lantern(lx, groundY - 10, 60.0, rng);
-            foregroundLayers.add(lantern);
+        // Дом 4 (справа от центра): x=679, w=176, 9 стояков окон
+        layers.add(new Khrushchevka(679, houseY, 176, houseH, 9, rng));
+
+        // Дом 5 (крайний справа): x=893, w=128, 6 стояков окон
+        layers.add(new Khrushchevka(893, houseY, 128, houseH, 6, rng));
+
+        // 4. Окружение: тротуар, дорога, проезды, лавочка, урны, земляные насыпи
+        layers.add(new ForegroundEnvironment(WIDTH, HEIGHT, sidewalkTopY, roadTopY));
+
+        // 5. Фонари (в точных координатах концепта)
+        double[] lanternXs = {26, 290, 464, 556, 726};
+        for (double lx : lanternXs) {
+            layers.add(new Lantern(lx, sidewalkTopY + 22, 54.0, rng));
         }
 
-        // 7. Автомобиль: проезжает раз в 8 секунд за 5 секунд через весь экран
-        Car car = new Car(width, groundY + (height - groundY) * 0.55, 8.0, 5.0);
-        foregroundLayers.add(car);
+        // 6. Проезжающий синий седан (раз в 7 секунд, движение 4.5 секунды)
+        layers.add(new Car(WIDTH, roadTopY, 7.0, 4.5));
     }
 
     @Override
     public void draw(GraphicsContext gc, double time) {
-        for (Drawable d : backgroundLayers) {
-            d.draw(gc, time);
-        }
-        for (Drawable d : buildingLayers) {
-            d.draw(gc, time);
-        }
-        for (Drawable d : foregroundLayers) {
+        for (Drawable d : layers) {
             d.draw(gc, time);
         }
     }

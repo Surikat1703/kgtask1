@@ -2,30 +2,20 @@ package ru.vsu.cs.kg.model;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.CycleMethod;
-import javafx.scene.paint.RadialGradient;
-import javafx.scene.paint.Stop;
 import javafx.scene.shape.ArcType;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 
 /**
- * Проезжающий автомобиль (ВАЗ-2101 / классический седан в стиле эскиза).
- * Проезжает раз в periodSeconds секунд.
- * Использует примитивы:
- * - Прямоугольники и трапеции для кузова
- * - Эллипсы / круги для колес и колпаков
- * - Арки колесных арок (ArcType.OPEN)
- * - Овалы со световым градиентом для лучей фар
- * - Текстовую надпись с госномером (например, "в777ах 36")
+ * Автомобиль точь-в-точь по концепту:
+ * - Синий угловатый седан (#3466ee кузов, #6ea4ff стекла)
+ * - Чёрный толстый контур (нарисован в стиле скетча)
+ * - Чёрные колёса
+ * - Проезжает по дороге раз в periodSeconds секунд
  */
 public class Car implements Drawable {
-    private final double roadY;
     private final double sceneWidth;
-    private final double periodSeconds; // Период появления автомобиля (раз в N секунд)
-    private final double driveDuration; // Время движения через весь экран
-    private final double carWidth = 90.0;
-    private final double carHeight = 36.0;
+    private final double roadY;
+    private final double periodSeconds;
+    private final double driveDuration;
 
     public Car(double sceneWidth, double roadY, double periodSeconds, double driveDuration) {
         this.sceneWidth = sceneWidth;
@@ -36,126 +26,72 @@ public class Car implements Drawable {
 
     @Override
     public void draw(GraphicsContext gc, double time) {
-        // Расчёт цикла времени: автомобиль проезжает с задержкой
-        double cycleTime = time % periodSeconds;
-
-        // Если сейчас интервал ожидания — машина за пределами экрана
-        if (cycleTime > driveDuration) {
+        double cycle = time % periodSeconds;
+        if (cycle > driveDuration) {
             return;
         }
 
-        // Прогресс движения от 0.0 до 1.0 (слева направо)
-        double progress = cycleTime / driveDuration;
-        double currentX = -carWidth - 50 + progress * (sceneWidth + carWidth + 100);
-        double currentY = roadY - carHeight + 10;
+        double progress = cycle / driveDuration;
+        double carW = 50.0;
+        double carH = 26.0;
+        double x = -carW - 20 + progress * (sceneWidth + carW + 40);
+        double y = roadY + 5;
 
-        // 1. Свет передних фар (проецируется вперед на дорогу)
-        double headlightX = currentX + carWidth;
-        double headlightY = currentY + carHeight * 0.65;
-
-        // Конус света фар (многоугольник или овал)
-        double[] coneX = {headlightX, headlightX + 110, headlightX + 110};
-        double[] coneY = {headlightY, headlightY - 15, headlightY + 25};
-        RadialGradient headBeam = new RadialGradient(
-                0, 0, headlightX, headlightY, 110, false, CycleMethod.NO_CYCLE,
-                new Stop(0.0, Color.rgb(255, 255, 200, 0.45)),
-                new Stop(0.7, Color.rgb(255, 240, 150, 0.15)),
-                new Stop(1.0, Color.TRANSPARENT)
-        );
-        gc.setFill(headBeam);
-        gc.fillPolygon(coneX, coneY, 3);
-
-        // 2. Кузов машины (ярко-голубой, как на эскизе)
+        // 1. Корпус машины (ярко-синий как на концепте: #3b6ced)
         // Нижняя часть (прямоугольник)
-        gc.setFill(Color.web("#2b74d9"));
-        gc.fillRect(currentX, currentY + 12, carWidth, 16);
-        gc.setStroke(Color.web("#143566"));
-        gc.setLineWidth(1.5);
-        gc.strokeRect(currentX, currentY + 12, carWidth, 16);
+        gc.setFill(Color.web("#3b6ced"));
+        gc.fillRect(x, y + 10, carW, 12);
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(2.0);
+        gc.strokeRect(x, y + 10, carW, 12);
 
-        // Кабина (трапеция крыши)
-        double roofLeft = currentX + 18;
-        double roofRight = currentX + carWidth - 22;
-        double roofTop = currentY;
-        double cabinBottom = currentY + 12;
-
-        double[] cabX = {roofLeft - 8, roofLeft, roofRight, roofRight + 8};
-        double[] cabY = {cabinBottom, roofTop, roofTop, cabinBottom};
-        gc.setFill(Color.web("#3988f7"));
+        // Верхняя часть (кабина со скошенным лобовым и задним стеклом)
+        double[] cabX = {x + 6, x + 14, x + carW - 14, x + carW - 6};
+        double[] cabY = {y + 10, y, y, y + 10};
+        gc.setFill(Color.web("#3b6ced"));
         gc.fillPolygon(cabX, cabY, 4);
         gc.strokePolygon(cabX, cabY, 4);
 
-        // Окна машины (голубовато-белые стекла)
-        gc.setFill(Color.web("#d2e7ff"));
-        double[] winBackX = {roofLeft - 5, roofLeft + 2, currentX + 38, currentX + 38};
-        double[] winBackY = {cabinBottom - 1, roofTop + 2, roofTop + 2, cabinBottom - 1};
-        gc.fillPolygon(winBackX, winBackY, 4);
+        // Стекла кабины (светло-голубые #6ea4ff)
+        double[] winX = {x + 9, x + 15, x + carW - 15, x + carW - 9};
+        double[] winY = {y + 9, y + 2, y + 2, y + 9};
+        gc.setFill(Color.web("#6ea4ff"));
+        gc.fillPolygon(winX, winY, 4);
+        gc.strokePolygon(winX, winY, 4);
 
-        double[] winFrontX = {currentX + 42, currentX + 42, roofRight - 2, roofRight + 5};
-        double[] winFrontY = {cabinBottom - 1, roofTop + 2, roofTop + 2, cabinBottom - 1};
-        gc.fillPolygon(winFrontX, winFrontY, 4);
+        // Центральная стойка окна
+        gc.strokeLine(x + carW * 0.5, y + 2, x + carW * 0.5, y + 9);
 
-        // Стойка между окнами
-        gc.setStroke(Color.web("#143566"));
-        gc.setLineWidth(2.0);
-        gc.strokeLine(currentX + 40, roofTop + 1, currentX + 40, cabinBottom);
+        // 2. Фары
+        // Передняя фара (жёлтая)
+        gc.setFill(Color.web("#ffe600"));
+        gc.fillRect(x + carW - 2, y + 12, 3, 4);
+        gc.strokeRect(x + carW - 2, y + 12, 3, 4);
 
-        // Дверная ручка
-        gc.setFill(Color.web("#c0c0c0"));
-        gc.fillRect(currentX + 32, currentY + 16, 6, 2);
+        // Задняя фара (красная)
+        gc.setFill(Color.web("#ee2222"));
+        gc.fillRect(x - 1, y + 12, 3, 4);
+        gc.strokeRect(x - 1, y + 12, 3, 4);
 
-        // 3. Бамперы (металлические)
-        gc.setFill(Color.web("#c4c9d4"));
-        gc.fillRect(currentX - 3, currentY + 22, 4, 5); // задний
-        gc.fillRect(currentX + carWidth - 1, currentY + 22, 4, 5); // передний
+        // 3. Колёса (чёрные круги, примитив круг/эллипс)
+        double wheelRadius = 5.5;
+        double w1X = x + 11;
+        double w2X = x + carW - 11;
+        double wheelY = y + 21;
 
-        // 4. Фары
-        // Передняя фара
-        gc.setFill(Color.web("#fff6bd"));
-        gc.fillOval(currentX + carWidth - 2, currentY + 15, 4, 6);
-        // Задний фонарь (красный)
-        gc.setFill(Color.web("#e62e2e"));
-        gc.fillOval(currentX - 2, currentY + 15, 3, 5);
+        // Колесные арки (примитив ARC)
+        gc.setLineWidth(1.6);
+        gc.strokeArc(w1X - wheelRadius - 1.5, wheelY - wheelRadius - 1.5, (wheelRadius + 1.5) * 2, (wheelRadius + 1.5) * 2, 0, 180, ArcType.OPEN);
+        gc.strokeArc(w2X - wheelRadius - 1.5, wheelY - wheelRadius - 1.5, (wheelRadius + 1.5) * 2, (wheelRadius + 1.5) * 2, 0, 180, ArcType.OPEN);
 
-        // 5. Текстовая надпись: Госномер автомобиля (примитив ТЕКСТ)
-        gc.setFill(Color.WHITE);
-        gc.fillRect(currentX + carWidth * 0.42, currentY + 20, 24, 7);
-        gc.setStroke(Color.BLACK);
-        gc.setLineWidth(0.6);
-        gc.strokeRect(currentX + carWidth * 0.42, currentY + 20, 24, 7);
+        // Сами шины
         gc.setFill(Color.BLACK);
-        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 5.5));
-        gc.fillText("В777АХ36", currentX + carWidth * 0.42 + 1, currentY + 25.5);
+        gc.fillOval(w1X - wheelRadius, wheelY - wheelRadius, wheelRadius * 2, wheelRadius * 2);
+        gc.fillOval(w2X - wheelRadius, wheelY - wheelRadius, wheelRadius * 2, wheelRadius * 2);
 
-        // 6. Колёса и колёсные арки (Арки ArcType.OPEN + Эллипсы)
-        double wheelRadius = 8.5;
-        double wheelY = currentY + 25;
-        double wheel1X = currentX + 18;
-        double wheel2X = currentX + carWidth - 20;
-
-        // Колёсные арки (вырез в кузове)
-        gc.setStroke(Color.web("#143566"));
-        gc.setLineWidth(2.0);
-        gc.strokeArc(wheel1X - wheelRadius - 2, wheelY - wheelRadius - 2, (wheelRadius + 2) * 2, (wheelRadius + 2) * 2, 0, 180, ArcType.OPEN);
-        gc.strokeArc(wheel2X - wheelRadius - 2, wheelY - wheelRadius - 2, (wheelRadius + 2) * 2, (wheelRadius + 2) * 2, 0, 180, ArcType.OPEN);
-
-        // Сами шины (тёмно-серые эллипсы)
-        gc.setFill(Color.web("#17171a"));
-        gc.fillOval(wheel1X - wheelRadius, wheelY - wheelRadius + 2, wheelRadius * 2, wheelRadius * 2);
-        gc.fillOval(wheel2X - wheelRadius, wheelY - wheelRadius + 2, wheelRadius * 2, wheelRadius * 2);
-
-        // Диски / колпаки колёс (светло-серые)
-        gc.setFill(Color.web("#bcc4cc"));
-        gc.fillOval(wheel1X - wheelRadius * 0.5, wheelY - wheelRadius * 0.5 + 2, wheelRadius, wheelRadius);
-        gc.fillOval(wheel2X - wheelRadius * 0.5, wheelY - wheelRadius * 0.5 + 2, wheelRadius, wheelRadius);
-
-        // Спицы колёс (вращение при движении)
-        double wheelAngle = time * 20.0;
-        gc.setStroke(Color.web("#303338"));
-        gc.setLineWidth(1.0);
-        double cosA = Math.cos(wheelAngle) * (wheelRadius * 0.5);
-        double sinA = Math.sin(wheelAngle) * (wheelRadius * 0.5);
-        gc.strokeLine(wheel1X - cosA, wheelY + 2 - sinA, wheel1X + cosA, wheelY + 2 + sinA);
-        gc.strokeLine(wheel2X - cosA, wheelY + 2 - sinA, wheel2X + cosA, wheelY + 2 + sinA);
+        // Диски колёс
+        gc.setFill(Color.web("#999999"));
+        gc.fillOval(w1X - 2.5, wheelY - 2.5, 5, 5);
+        gc.fillOval(w2X - 2.5, wheelY - 2.5, 5, 5);
     }
 }

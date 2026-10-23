@@ -2,175 +2,139 @@ package ru.vsu.cs.kg.model;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 /**
- * Панельный дом хрущевка (серия 1-464 / 1-468).
- * Включает:
- * - Бетонный фасад из серых плит со швами (прямоугольники и линии)
- * - Крыша с парапетом и телевизионными антеннами (сложные ломаные линии)
- * - Сетка случайно сгенерированных окон (WindowElement)
- * - Адресная табличка (осмысленная текстовая надпись, fillText)
- * - Входной подъезд / дверь с козырьком
+ * Хрущёвка 1-в-1 по концепту:
+ * - Ровно 6 этажей, 16 окон в ряд на фасаде
+ * - Серая текстура бетона (#999999 / #a3a3a3)
+ * - Чёрные четкие швы между панелями
+ * - Крыша: парапет со скошенными углами и штрихами
+ * - Чёрные телеантенны характерной формы ("ёлочки" / Т-образные мачты)
  */
 public class Khrushchevka implements Drawable {
     private final double x;
     private final double y;
     private final double width;
     private final double height;
-    private final int floors;
-    private final int entrances; // Подъезды
-    private final int windowsPerRow;
-    private final String streetAddress;
+    private final int rows = 6;
+    private final int cols;
     private final List<WindowElement> windows = new ArrayList<>();
-    private final List<Antenna> antennas = new ArrayList<>();
+    private final List<Double> antennaXs = new ArrayList<>();
 
-    public static class Antenna {
-        double relX;
-        double height;
-        int crossbars;
-
-        public Antenna(double relX, double height, int crossbars) {
-            this.relX = relX;
-            this.height = height;
-            this.crossbars = crossbars;
-        }
-    }
-
-    public Khrushchevka(double x, double y, double width, double height,
-                        int floors, int windowsPerRow, String streetAddress, Random rng) {
+    public Khrushchevka(double x, double y, double width, double height, int cols, Random rng) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-        this.floors = floors;
-        this.entrances = 2;
-        this.windowsPerRow = windowsPerRow;
-        this.streetAddress = streetAddress;
+        this.cols = cols;
 
-        // Генерация окон по этажам и стоякам
-        double padX = 18.0;
-        double padY = 22.0;
-        double winW = (width - padX * 2) / windowsPerRow - 10.0;
-        double winH = (height - padY * 2 - 15) / floors - 12.0;
+        // Расчёт позиций окон в сетке панели
+        double cellW = width / cols;
+        double cellH = height / rows;
+        double winW = cellW * 0.52;
+        double winH = cellH * 0.58;
 
-        for (int r = 0; r < floors; r++) {
-            for (int c = 0; c < windowsPerRow; c++) {
-                double wx = padX + c * (winW + 10.0) + 5.0;
-                double wy = padY + r * (winH + 12.0) + 5.0;
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                double wx = c * cellW + (cellW - winW) / 2.0;
+                double wy = r * cellH + (cellH - winH) / 2.0;
                 windows.add(new WindowElement(wx, wy, winW, winH, rng));
             }
         }
 
-        // Генерация ТВ-антенн на крыше как на эскизе
-        int antCount = 3 + rng.nextInt(3);
-        for (int i = 0; i < antCount; i++) {
-            double ax = padX + rng.nextDouble() * (width - padX * 2);
-            double ah = 20.0 + rng.nextDouble() * 22.0;
-            antennas.add(new Antenna(ax, ah, 3 + rng.nextInt(3)));
+        // Позиции антенн на крыше
+        if (cols >= 10) {
+            // Большое центральное здание (3 антенны по эскизу)
+            antennaXs.add(width * 0.18);
+            antennaXs.add(width * 0.52);
+            antennaXs.add(width * 0.82);
+        } else if (cols >= 4) {
+            // Боковые здания (по 1-2 антенны)
+            antennaXs.add(width * 0.35);
+            antennaXs.add(width * 0.75);
+        } else {
+            // Узкие пролёты
+            antennaXs.add(width * 0.5);
         }
     }
 
     @Override
     public void draw(GraphicsContext gc, double time) {
-        // 1. Антенны на крыше (рисуются за/над парапетом)
+        // 1. Антенны на крыше (как нарисовано на эскизе от руки)
         drawAntennas(gc);
 
-        // 2. Основное тело дома (серые бетонные панели)
-        gc.setFill(Color.web("#80868f"));
+        // 2. Фасад здания
+        gc.setFill(Color.web("#999a9e"));
         gc.fillRect(x, y, width, height);
 
-        // Окантовка контура дома
-        gc.setStroke(Color.web("#2c2d30"));
-        gc.setLineWidth(2.0);
+        // Внешний контур здания
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(2.2);
         gc.strokeRect(x, y, width, height);
 
-        // 3. Бетонные швы панелей (горизонтальные и вертикальные линии)
-        gc.setStroke(Color.web("#4b4e54"));
-        gc.setLineWidth(1.5);
+        // 3. Парапет крыши (выступающая плита сверху)
+        gc.setFill(Color.web("#787b80"));
+        gc.fillRect(x - 2, y - 6, width + 4, 7);
+        gc.strokeRect(x - 2, y - 6, width + 4, 7);
 
-        // Горизонтальные межпанельные швы
-        double panelH = height / floors;
-        for (int i = 1; i < floors; i++) {
-            double sy = y + i * panelH;
+        // Скосы и штрихи на крыше как на эскизе
+        gc.setLineWidth(1.2);
+        for (double k = x + 15; k < x + width; k += 45) {
+            gc.strokeLine(k, y - 6, k + 8, y);
+        }
+
+        // 4. Сетка межпанельных швов (чёрные линии)
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(1.6);
+
+        double cellW = width / cols;
+        double cellH = height / rows;
+
+        // Горизонтальные швы между этажами
+        for (int r = 1; r < rows; r++) {
+            double sy = y + r * cellH;
             gc.strokeLine(x, sy, x + width, sy);
         }
 
-        // Вертикальные швы
-        double panelW = width / windowsPerRow;
-        for (int i = 1; i < windowsPerRow; i++) {
-            double sx = x + i * panelW;
+        // Вертикальные швы между панелями
+        for (int c = 1; c < cols; c++) {
+            double sx = x + c * cellW;
             gc.strokeLine(sx, y, sx, y + height);
         }
-
-        // 4. Карниз / парапет крыши
-        gc.setFill(Color.web("#5e6269"));
-        gc.fillRect(x - 2, y - 6, width + 4, 7);
-        gc.setStroke(Color.web("#232426"));
-        gc.setLineWidth(1.5);
-        gc.strokeRect(x - 2, y - 6, width + 4, 7);
-
-        // Маленькие выступы вентиляционных шахт на крыше
-        gc.setFill(Color.web("#4f5359"));
-        gc.fillRect(x + width * 0.15, y - 12, 16, 7);
-        gc.strokeRect(x + width * 0.15, y - 12, 16, 7);
-        gc.fillRect(x + width * 0.75, y - 13, 20, 8);
-        gc.strokeRect(x + width * 0.75, y - 13, 20, 8);
 
         // 5. Отрисовка всех окон
         for (WindowElement win : windows) {
             win.draw(gc, x, y);
         }
-
-        // 6. Осмысленная текстовая надпись: адресная табличка на торце / стене дома
-        drawAddressPlate(gc);
     }
 
     private void drawAntennas(GraphicsContext gc) {
-        gc.setStroke(Color.web("#222325"));
-        gc.setLineWidth(1.6);
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(2.0);
 
-        for (Antenna ant : antennas) {
-            double ax = x + ant.relX;
-            double topY = y - ant.height;
-            // Центральная мачта
+        for (double relX : antennaXs) {
+            double ax = x + relX;
+            double topY = y - 24;
+
+            // Вертикальная опора
             gc.strokeLine(ax, y, ax, topY);
 
-            // Поперечные перекладины антенны
-            for (int k = 1; k <= ant.crossbars; k++) {
-                double barY = topY + k * (ant.height / (ant.crossbars + 1.2));
-                double barW = 8.0 + (ant.crossbars - k) * 3.5;
-                gc.strokeLine(ax - barW, barY, ax + barW, barY);
-            }
-            // Диагональные оттяжки
-            gc.setLineWidth(0.8);
-            gc.strokeLine(ax, topY + 6, ax - 7, y);
-            gc.strokeLine(ax, topY + 6, ax + 7, y);
-            gc.setLineWidth(1.6);
+            // Поперечные "усы" антенны с разветвлениями
+            gc.strokeLine(ax - 10, topY + 4, ax + 10, topY + 4);
+            gc.strokeLine(ax - 14, topY + 10, ax + 14, topY + 10);
+            gc.strokeLine(ax - 8, topY + 16, ax + 8, topY + 16);
+
+            // Наклонные "рога" антенны
+            gc.setLineWidth(1.4);
+            gc.strokeLine(ax - 10, topY + 4, ax - 13, topY - 2);
+            gc.strokeLine(ax + 10, topY + 4, ax + 13, topY - 2);
+            gc.strokeLine(ax - 14, topY + 10, ax - 17, topY + 5);
+            gc.strokeLine(ax + 14, topY + 10, ax + 17, topY + 5);
+            gc.setLineWidth(2.0);
         }
-    }
-
-    private void drawAddressPlate(GraphicsContext gc) {
-        double plateX = x + 10;
-        double plateY = y + height - 28;
-        double plateW = 100;
-        double plateH = 20;
-
-        // Синяя советская табличка с адресом
-        gc.setFill(Color.web("#143570"));
-        gc.fillRect(plateX, plateY, plateW, plateH);
-        gc.setStroke(Color.web("#ffffff"));
-        gc.setLineWidth(1.0);
-        gc.strokeRect(plateX + 1, plateY + 1, plateW - 2, plateH - 2);
-
-        // Белый текст на табличке (примитив ТЕКСТ)
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Arial", FontWeight.BOLD, 9.5));
-        gc.fillText(streetAddress, plateX + 5, plateY + 14);
     }
 }
