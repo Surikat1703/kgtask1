@@ -2,24 +2,22 @@ package ru.vsu.cs.kg.model;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.ArcType;
 
 import java.util.Random;
 
 /**
- * Окно хрущёвки:
- * - Увеличенный читаемый размер (как на концепте: крупнее, выразительнее)
- * - Возможность динамически менять форму окна (cycleType)
- * - 3 формы:
- *     1. Трёхстворчатое окно (две вертикальные белые стойки и верхняя форточка)
- *     2. Двустворчатое окно с форточкой
- *     3. Окно с арочной фрамугой сверху (примитив ARC)
+ * Окно хрущёвки со строго 4 формами окон:
+ * 1. SINGLE_VERTICAL: Окно с одной сплошной вертикальной линией по центру
+ * 2. FULL_CROSS: Окно крестом (вертикальная линия + горизонтальная линия)
+ * 3. CROSS_NO_LEFT: Крест без левой половины горизонтальной линии (линия только справа)
+ * 4. CROSS_NO_RIGHT: Крест без правой половины горизонтальной линии (линия только слева)
  */
 public class WindowElement {
     public enum WindowType {
-        CONCEPT_TRIPLE,   // 3 створки (оригинал эскиза)
-        DOUBLE_CASEMENT,  // 2 створки + форточка
-        ARCH_FRAME        // Арочный свод
+        SINGLE_VERTICAL, // Одна вертикальная линия
+        FULL_CROSS,      // Полный крест
+        CROSS_NO_LEFT,   // Крест без левой части горизонтали (только справа)
+        CROSS_NO_RIGHT   // Крест без правой части горизонтали (только слева)
     }
 
     private final double relX;
@@ -35,15 +33,19 @@ public class WindowElement {
         this.width = width;
         this.height = height;
 
-        int t = rng.nextInt(3);
+        // Случайный выбор одной из 4 форм
+        int t = rng.nextInt(4);
         if (t == 0) {
-            this.type = WindowType.CONCEPT_TRIPLE;
+            this.type = WindowType.SINGLE_VERTICAL;
         } else if (t == 1) {
-            this.type = WindowType.DOUBLE_CASEMENT;
+            this.type = WindowType.FULL_CROSS;
+        } else if (t == 2) {
+            this.type = WindowType.CROSS_NO_LEFT;
         } else {
-            this.type = WindowType.ARCH_FRAME;
+            this.type = WindowType.CROSS_NO_RIGHT;
         }
 
+        // Случайный цвет: темно-синий, фиолетовый или желтый
         int c = rng.nextInt(3);
         if (c == 0) {
             this.glassColor = Color.web("#0e1236"); // тёмно-синий
@@ -55,15 +57,14 @@ public class WindowElement {
     }
 
     /**
-     * Смена формы окна (по клику мыши или по вызову).
+     * Переключение формы окна по кругу (1 -> 2 -> 3 -> 4 -> 1)
      */
     public void cycleType() {
-        if (type == WindowType.CONCEPT_TRIPLE) {
-            type = WindowType.DOUBLE_CASEMENT;
-        } else if (type == WindowType.DOUBLE_CASEMENT) {
-            type = WindowType.ARCH_FRAME;
-        } else {
-            type = WindowType.CONCEPT_TRIPLE;
+        switch (type) {
+            case SINGLE_VERTICAL -> type = WindowType.FULL_CROSS;
+            case FULL_CROSS -> type = WindowType.CROSS_NO_LEFT;
+            case CROSS_NO_LEFT -> type = WindowType.CROSS_NO_RIGHT;
+            case CROSS_NO_RIGHT -> type = WindowType.SINGLE_VERTICAL;
         }
     }
 
@@ -77,11 +78,11 @@ public class WindowElement {
         double x = baseX + relX;
         double y = baseY + relY;
 
-        // Чёрная ниша окна
+        // Внешняя чёрная ниша окна
         gc.setFill(Color.BLACK);
         gc.fillRect(x, y, width, height);
 
-        // Стекло окна
+        // Цветное стекло
         double pad = 2.0;
         double gw = width - pad * 2;
         double gh = height - pad * 2;
@@ -89,33 +90,34 @@ public class WindowElement {
         gc.setFill(glassColor);
         gc.fillRect(x + pad, y + pad, gw, gh);
 
-        // Белые переплёты рамы
+        // Белая рама и переплёты
         gc.setStroke(Color.WHITE);
-        gc.setLineWidth(2.0);
+        gc.setLineWidth(2.2);
         gc.strokeRect(x + pad + 0.5, y + pad + 0.5, gw - 1.0, gh - 1.0);
 
-        if (type == WindowType.CONCEPT_TRIPLE) {
-            // Оригинальная трёхстворчатая форма с эскиза
-            double col1 = x + pad + gw * 0.35;
-            double col2 = x + pad + gw * 0.65;
-            gc.strokeLine(col1, y + pad, col1, y + pad + gh);
-            gc.strokeLine(col2, y + pad, col2, y + pad + gh);
-            double row1 = y + pad + gh * 0.32;
-            gc.strokeLine(col1, row1, col2, row1);
+        double midX = x + pad + gw * 0.5;
+        double midY = y + pad + gh * 0.40; // Горизонтальная планка чуть выше середины (классическая форточка)
 
-        } else if (type == WindowType.DOUBLE_CASEMENT) {
-            // Двустворчатая рама
-            double mid = x + pad + gw * 0.45;
-            gc.strokeLine(mid, y + pad, mid, y + pad + gh);
-            double fortY = y + pad + gh * 0.38;
-            gc.strokeLine(mid, fortY, x + pad + gw, fortY);
+        // 1. Всегда есть вертикальная линия по центру
+        gc.strokeLine(midX, y + pad, midX, y + pad + gh);
 
-        } else {
-            // Арочная форма (примитив ARC)
-            gc.setLineWidth(1.8);
-            gc.strokeArc(x + pad + 1, y + pad + 1, gw - 2, gh * 0.8, 0, 180, ArcType.OPEN);
-            double mid = x + pad + gw * 0.5;
-            gc.strokeLine(mid, y + pad + gh * 0.35, mid, y + pad + gh);
+        // 2. Горизонтальные планки согласно 4 типам
+        switch (type) {
+            case SINGLE_VERTICAL -> {
+                // Только вертикальная линия, горизонтальной нет
+            }
+            case FULL_CROSS -> {
+                // Полный крест (линия слева и справа)
+                gc.strokeLine(x + pad, midY, x + pad + gw, midY);
+            }
+            case CROSS_NO_LEFT -> {
+                // Крест без левой половины (линия только СПРАВА)
+                gc.strokeLine(midX, midY, x + pad + gw, midY);
+            }
+            case CROSS_NO_RIGHT -> {
+                // Крест без правой половины (линия только СЛЕВА)
+                gc.strokeLine(x + pad, midY, midX, midY);
+            }
         }
     }
 }
