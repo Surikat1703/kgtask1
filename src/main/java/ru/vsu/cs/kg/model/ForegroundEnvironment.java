@@ -7,10 +7,10 @@ import javafx.scene.text.FontWeight;
 
 /**
  * Окружение переднего плана:
- * - Заезды во дворы: аккуратный тёмно-серый асфальт, плавно стыкующийся с дорогой и домами
- * - Земляные насыпи (холмики) — цвет #dd9571 с чёрным контуром
- * - Зелёная лавочка, серые урны с текстом "УРНА"
- * - Дорога с разметкой
+ * - Заезды во дворы
+ * - Тротуарная плитка, бордюр и проезжая часть
+ * - Никаких пятен под фонарями!
+ * - Скамейка и урны
  */
 public class ForegroundEnvironment implements Drawable {
     private final double width;
@@ -45,14 +45,13 @@ public class ForegroundEnvironment implements Drawable {
             gc.strokeLine(0, y, width, y);
         }
         for (double x = -10; x < width + 40; x += 15) {
-            // Пропускаем штриховку плитки поверх проездов во дворы
             if ((x >= 120 && x <= 185) || (x >= 855 && x <= 925)) {
                 continue;
             }
             gc.strokeLine(x, sidewalkTopY, x - 18, roadTopY);
         }
 
-        // Перерисовываем проезды во дворы поверх плитки, чтобы границы были четкими
+        // Перерисовываем проезды во дворы поверх плитки для ровного стыка
         drawCourtyardDriveways(gc);
 
         // 3. Бордюрный камень вдоль проезжей части
@@ -81,13 +80,10 @@ public class ForegroundEnvironment implements Drawable {
         gc.setLineWidth(2.5);
         gc.strokeLine(0, height - 8, width, height - 8);
 
-        // 5. Островки насыпей/газонов (коричнево-рыжие как на концепте)
-        drawMounds(gc);
-
-        // 6. Скамейка
+        // 5. Скамейка
         drawBench(gc, 505, sidewalkTopY + 12);
 
-        // 7. Урны для мусора
+        // 6. Урны для мусора
         double[] urnXs = {88, 385, 606, 698};
         for (double ux : urnXs) {
             drawUrn(gc, ux, sidewalkTopY + 10);
@@ -99,13 +95,13 @@ public class ForegroundEnvironment implements Drawable {
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(2.2);
 
-        // Левый заезд во двор (между крайним левым домом и вторым)
+        // Левый заезд во двор
         double[] leftX = {149, 184, 168, 126};
         double[] leftY = {sidewalkTopY - 70, sidewalkTopY - 70, roadTopY, roadTopY};
         gc.fillPolygon(leftX, leftY, 4);
         gc.strokePolygon(leftX, leftY, 4);
 
-        // Правый заезд во двор (между четвёртым и правым домом)
+        // Правый заезд во двор
         double[] rightX = {856, 891, 915, 873};
         double[] rightY = {sidewalkTopY - 70, sidewalkTopY - 70, roadTopY, roadTopY};
         gc.fillPolygon(rightX, rightY, 4);
@@ -116,39 +112,15 @@ public class ForegroundEnvironment implements Drawable {
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1.4);
 
-        // Левый скос бордюра
         double[] leftBevelX = {149, 153, 130, 126};
         double[] leftBevelY = {sidewalkTopY - 70, sidewalkTopY - 70, roadTopY, roadTopY};
         gc.fillPolygon(leftBevelX, leftBevelY, 4);
         gc.strokePolygon(leftBevelX, leftBevelY, 4);
 
-        // Правый скос бордюра
         double[] rightBevelX = {887, 891, 915, 911};
         double[] rightBevelY = {sidewalkTopY - 70, sidewalkTopY - 70, roadTopY, roadTopY};
         gc.fillPolygon(rightBevelX, rightBevelY, 4);
         gc.strokePolygon(rightBevelX, rightBevelY, 4);
-    }
-
-    private void drawMounds(GraphicsContext gc) {
-        gc.setFill(Color.web("#dd9571"));
-        gc.setStroke(Color.BLACK);
-        gc.setLineWidth(2.0);
-
-        drawSingleMound(gc, 9, sidewalkTopY + 24, 32, 16);
-        drawSingleMound(gc, 273, sidewalkTopY + 24, 52, 19);
-        drawSingleMound(gc, 460, sidewalkTopY + 25, 45, 17);
-        drawSingleMound(gc, 548, sidewalkTopY + 25, 44, 15);
-        drawSingleMound(gc, 715, sidewalkTopY + 24, 50, 19);
-    }
-
-    private void drawSingleMound(GraphicsContext gc, double x, double y, double w, double h) {
-        gc.beginPath();
-        gc.moveTo(x, y);
-        gc.quadraticCurveTo(x + w * 0.2, y - h * 1.05, x + w * 0.5, y - h);
-        gc.quadraticCurveTo(x + w * 0.8, y - h * 0.95, x + w, y);
-        gc.closePath();
-        gc.fill();
-        gc.stroke();
     }
 
     private void drawBench(GraphicsContext gc, double x, double y) {

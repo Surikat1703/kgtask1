@@ -9,10 +9,10 @@ import java.util.Random;
 /**
  * Главная модель сцены:
  * - Небо, Луна и звёзды
- * - Задний план: полноценные широкие хрущёвки во дворах (без странных срезов, правильная перспектива)
- * - Передний план: 5 домов хрущёвок с 4 формами окон и 3 цветами
- * - Фонарные столбы с живым мерцающим светом и мягким световым конусом
- * - Дорога, аккуратные заезды во дворы, лавочка, урны, холмики и проезжающая машина
+ * - Задний план: ПОЛНОЦЕННЫЕ широкие хрущёвки во дворах (шириной 120-140 px, нормальные 5-этажные дома)
+ * - Передний план: 5 домов хрущёвок переднего ряда
+ * - Фонарные столбы: ТОЛЬКО мерцающая лампа под плафоном, НИКАКИХ пятен на земле
+ * - Проезды во дворы, тротуар, дорога, скамейка, урны и автомобиль
  */
 public class CityscapeModel implements Drawable {
     public static final double BASE_WIDTH = 1024.0;
@@ -41,20 +41,20 @@ public class CityscapeModel implements Drawable {
         double houseH = 182.0;
         double houseY = sidewalkTopY - houseH;
 
-        // 2. Полноценные здания во дворах на заднем плане (широкие дома, видные в просвет между передними домами)
-        // Левый двор: полноценный дом на заднем плане
-        BackgroundCourtyardBuilding bgLeft = new BackgroundCourtyardBuilding(136, houseY - 14, 60, houseH + 14, 2, rng);
-        // Правый двор: полноценный дом на заднем плане
-        BackgroundCourtyardBuilding bgRight = new BackgroundCourtyardBuilding(846, houseY - 14, 60, houseH + 14, 2, rng);
+        // 2. Полноразмерные полноценные хрущёвки заднего плана во дворах (широкие 5-этажки на 5 стояков окон)
+        // Левый двор: дом шириной 130 px (полноценный фасад)
+        Khrushchevka bgLeft = new Khrushchevka(105, houseY - 14, 130, houseH + 14, 5, true, rng);
+        // Правый двор: дом шириной 130 px (полноценный фасад)
+        Khrushchevka bgRight = new Khrushchevka(815, houseY - 14, 130, houseH + 14, 5, true, rng);
         backgroundLayers.add(bgLeft);
         backgroundLayers.add(bgRight);
 
-        // 3. Пять домов переднего плана (5 этажей, 4 формы окон)
-        Khrushchevka h1 = new Khrushchevka(3, houseY, 146, houseH, 5, rng);
-        Khrushchevka h2 = new Khrushchevka(184, houseY, 170, houseH, 6, rng);
-        Khrushchevka h3 = new Khrushchevka(357, houseY, 319, houseH, 11, rng);
-        Khrushchevka h4 = new Khrushchevka(679, houseY, 176, houseH, 6, rng);
-        Khrushchevka h5 = new Khrushchevka(891, houseY, 130, houseH, 4, rng);
+        // 3. Пять домов переднего ряда
+        Khrushchevka h1 = new Khrushchevka(3, houseY, 146, houseH, 5, false, rng);
+        Khrushchevka h2 = new Khrushchevka(184, houseY, 170, houseH, 6, false, rng);
+        Khrushchevka h3 = new Khrushchevka(357, houseY, 319, houseH, 11, false, rng);
+        Khrushchevka h4 = new Khrushchevka(679, houseY, 176, houseH, 6, false, rng);
+        Khrushchevka h5 = new Khrushchevka(891, houseY, 130, houseH, 4, false, rng);
 
         frontHouses.add(h1);
         frontHouses.add(h2);
@@ -62,16 +62,16 @@ public class CityscapeModel implements Drawable {
         frontHouses.add(h4);
         frontHouses.add(h5);
 
-        // 4. Окружение переднего плана (тротуар, дорога, заезды во дворы, лавочка, урны, холмики)
+        // 4. Окружение переднего плана (тротуар, дорога, заезды во дворы, лавочка, урны)
         foregroundLayers.add(new ForegroundEnvironment(BASE_WIDTH, BASE_HEIGHT, sidewalkTopY, roadTopY));
 
-        // 5. Фонари (с мерцающей лампой и синхронным мягким световым пятном)
+        // 5. Фонари (строго чёрный столб и мерцающая лампа под козырьком)
         double[] lanternXs = {26, 290, 464, 556, 726};
         for (double lx : lanternXs) {
             foregroundLayers.add(new Lantern(lx, sidewalkTopY + 20, 54.0, rng));
         }
 
-        // 6. Проезжающий синий седан
+        // 6. Проезжающий синий автомобиль
         foregroundLayers.add(new Car(BASE_WIDTH, roadTopY, 7.0, 4.5));
     }
 

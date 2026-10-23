@@ -8,29 +8,29 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Хрущёвка:
- * - 5 этажей (классическая пятиэтажка, окна крупнее и пропорциональнее)
- * - Окна увеличены, сетка просторнее
- * - Поддерживает смену формы окна по клику
+ * Хрущёвка (полноценный дом):
+ * - Используется как для переднего плана, так и для заднего плана во дворах
+ * - Полноценные 5 этажей, ровная фасадная сетка, окна, швы и антенны
  */
 public class Khrushchevka implements Drawable {
     private final double x;
     private final double y;
     private final double width;
     private final double height;
-    private final int rows = 5; // 5 этажей как в реальной хрущевке
+    private final int rows = 5;
     private final int cols;
+    private final boolean isBackground;
     private final List<WindowElement> windows = new ArrayList<>();
     private final List<Double> antennaXs = new ArrayList<>();
 
-    public Khrushchevka(double x, double y, double width, double height, int cols, Random rng) {
+    public Khrushchevka(double x, double y, double width, double height, int cols, boolean isBackground, Random rng) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.cols = cols;
+        this.isBackground = isBackground;
 
-        // Расчёт пропорциональных крупных окон
         double cellW = width / cols;
         double cellH = height / rows;
         double winW = cellW * 0.65;
@@ -56,6 +56,10 @@ public class Khrushchevka implements Drawable {
         }
     }
 
+    public Khrushchevka(double x, double y, double width, double height, int cols, Random rng) {
+        this(x, y, width, height, cols, false, rng);
+    }
+
     public boolean handleClick(double px, double py) {
         for (WindowElement win : windows) {
             if (win.contains(x, y, px, py)) {
@@ -66,9 +70,6 @@ public class Khrushchevka implements Drawable {
         return false;
     }
 
-    /**
-     * Поменять форму всех окон дома
-     */
     public void cycleAllWindows() {
         for (WindowElement win : windows) {
             win.cycleType();
@@ -79,8 +80,8 @@ public class Khrushchevka implements Drawable {
     public void draw(GraphicsContext gc, double time) {
         drawAntennas(gc);
 
-        // Фасад здания
-        gc.setFill(Color.web("#999a9e"));
+        // Фасад здания (задний план чуть темнее)
+        gc.setFill(isBackground ? Color.web("#757980") : Color.web("#999a9e"));
         gc.fillRect(x, y, width, height);
 
         // Внешний контур
@@ -89,7 +90,7 @@ public class Khrushchevka implements Drawable {
         gc.strokeRect(x, y, width, height);
 
         // Парапет крыши
-        gc.setFill(Color.web("#787b80"));
+        gc.setFill(isBackground ? Color.web("#5e6269") : Color.web("#787b80"));
         gc.fillRect(x - 2, y - 6, width + 4, 7);
         gc.strokeRect(x - 2, y - 6, width + 4, 7);
 
