@@ -19,12 +19,12 @@ import java.io.File;
 public class RenderSnapshotTest extends javafx.application.Application {
     @Override
     public void start(Stage stage) throws Exception {
-        double w = 1200;
-        double h = 600;
+        double w = CityscapeModel.BASE_WIDTH;
+        double h = CityscapeModel.BASE_HEIGHT;
         Canvas canvas = new Canvas(w, h);
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
-        CityscapeModel model = new CityscapeModel(w, h);
+        CityscapeModel model = new CityscapeModel();
         // Рендерим кадр на 2-й секунде (когда машина уже выехала на дорогу)
         model.draw(gc, 2.0);
 
