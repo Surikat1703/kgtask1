@@ -17,6 +17,8 @@ public class MainApp extends Application {
             "Компьютерная графика - Хрущёвки (W/ЛКМ - смена формы всех окон, ЛКМ по окну - смена формы окна, R - регенерация, F11 - полный экран)";
     private static final String FULLSCREEN_HINT =
             "F11 или Esc — выйти из полноэкранного режима";
+    private static final double MIN_WINDOW_WIDTH = 640.0;
+    private static final double MIN_WINDOW_HEIGHT = 360.0;
 
     private final Scale fillScale = new Scale(1.0, 1.0, 0, 0);
     private CityscapeModel cityscapeModel;
@@ -99,6 +101,8 @@ public class MainApp extends Application {
     private void configureStage(Stage stage, Scene scene) {
         stage.setTitle(TITLE);
         stage.setResizable(true);
+        stage.setMinWidth(MIN_WINDOW_WIDTH);
+        stage.setMinHeight(MIN_WINDOW_HEIGHT);
         stage.setFullScreenExitHint(FULLSCREEN_HINT);
         stage.setScene(scene);
         stage.show();
