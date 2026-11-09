@@ -14,7 +14,7 @@ import ru.vsu.cs.kg.model.CityscapeModel;
 
 public class MainApp extends Application {
     private static final String TITLE =
-            "Компьютерная графика - Хрущёвки (W - форма окон, R - регенерация, F11 - полный экран)";
+            "Компьютерная графика - Хрущёвки (W/ЛКМ - смена формы всех окон, ЛКМ по окну - смена формы окна, R - регенерация, F11 - полный экран)";
     private static final String FULLSCREEN_HINT =
             "F11 или Esc — выйти из полноэкранного режима";
 
@@ -66,7 +66,7 @@ public class MainApp extends Application {
         scene.setOnMouseClicked(event -> handleMouseClick(event.getButton(), event.getX(), event.getY()));
 
         scene.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.W || event.getCode() == KeyCode.SPACE) {
+            if (event.getCode() == KeyCode.W) {
                 cityscapeModel.cycleAllWindows();
             } else if (event.getCode() == KeyCode.R) {
                 cityscapeModel.regenerate();
@@ -98,7 +98,7 @@ public class MainApp extends Application {
 
     private void configureStage(Stage stage, Scene scene) {
         stage.setTitle(TITLE);
-        stage.setResizable(false);
+        stage.setResizable(true);
         stage.setFullScreenExitHint(FULLSCREEN_HINT);
         stage.setScene(scene);
         stage.show();
