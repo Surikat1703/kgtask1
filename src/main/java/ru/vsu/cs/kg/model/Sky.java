@@ -2,97 +2,125 @@ package ru.vsu.cs.kg.model;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Небо точь-в-точь по концепту:
- * - Глубокий ровный тёмно-синий/чёрно-синий цвет (#0e1329)
- * - Луна: круглая, серая (#d5d8de), с 7 кратерами в точных координатах эскиза
- * - Звёзды: мелкие точки (#ffffff) случайного расположения и количества, мерцающие по синусоиде
- */
 public class Sky implements Drawable {
+    private static final Color SKY_COLOR = Color.web("#0e1329");
+    private static final Color MOON_COLOR = Color.web("#d7dadf");
+    private static final Color MOON_OUTLINE = Color.web("#10121a");
+    private static final Color CRATER_COLOR = Color.web("#b8bdc7");
+    private static final Color CRATER_SHADOW = Color.web("#9ea4b0");
+
+    private static final double MOON_CENTER_X = 212.0;
+    private static final double MOON_CENTER_Y = 56.0;
+    private static final double MOON_RADIUS = 22.0;
+    private static final double MOON_CLEARANCE = 4.0;
+
+    private static final double STAR_BAND_HEIGHT = 250.0;
+    private static final double STAR_SIZE_MIN = 1.0;
+    private static final double STAR_SIZE_RANGE = 1.5;
+    private static final double STAR_SPEED_MIN = 1.0;
+    private static final double STAR_SPEED_RANGE = 3.5;
+    private static final double STAR_ALPHA_MIN = 0.35;
+    private static final double STAR_ALPHA_RANGE = 0.65;
+
+    private static final double MOON_OUTLINE_WIDTH = 1.2;
+    private static final double CRATER_OUTLINE_WIDTH = 0.6;
+
+    private record Crater(double dx, double dy, double width, double height, boolean outlined) {}
+
+    private static final List<Crater> CRATERS = List.of(
+            new Crater(-9, -11, 6.5, 6.0, true),
+            new Crater(-14, -2, 7.5, 7.0, true),
+            new Crater(-6, 4, 8.5, 8.0, true),
+            new Crater(4, -8, 6.0, 5.5, false),
+            new Crater(5, 2, 7.0, 6.5, true),
+            new Crater(-4, -5, 4.5, 4.0, false),
+            new Crater(9, 9, 4.5, 4.0, false)
+    );
+
+    private record Star(double x, double y, double size, double speed, double phase) {}
+
     private final double width;
     private final double height;
-    private final double moonCenterX = 212.0;
-    private final double moonCenterY = 56.0;
-    private final double moonRadius = 22.0;
     private final List<Star> stars = new ArrayList<>();
-
-    public static class Star {
-        double x;
-        double y;
-        double size;
-        double speed;
-        double phase;
-
-        public Star(double x, double y, double size, double speed, double phase) {
-            this.x = x;
-            this.y = y;
-            this.size = size;
-            this.speed = speed;
-            this.phase = phase;
-        }
-    }
 
     public Sky(double width, double height, int starCount, Random rng) {
         this.width = width;
         this.height = height;
+        createStars(starCount, rng);
+    }
 
-        // Генерация случайных звёзд по небу
+    private void createStars(int starCount, Random rng) {
         for (int i = 0; i < starCount; i++) {
-            double sx = rng.nextDouble() * width;
-            double sy = rng.nextDouble() * 250.0; // небо до крыш домов
-            // Исключаем попадание прямо внутрь диска луны
-            if (Math.hypot(sx - moonCenterX, sy - moonCenterY) < moonRadius + 4) {
+            double starX = rng.nextDouble() * width;
+            double starY = rng.nextDouble() * STAR_BAND_HEIGHT;
+            if (!isClearOfMoon(starX, starY)) {
                 continue;
             }
-            double size = 1.0 + rng.nextDouble() * 1.5;
-            double speed = 1.0 + rng.nextDouble() * 3.5;
+
+            double size = STAR_SIZE_MIN + rng.nextDouble() * STAR_SIZE_RANGE;
+            double speed = STAR_SPEED_MIN + rng.nextDouble() * STAR_SPEED_RANGE;
             double phase = rng.nextDouble() * Math.PI * 2;
-            stars.add(new Star(sx, sy, size, speed, phase));
+            stars.add(new Star(starX, starY, size, speed, phase));
         }
+    }
+
+    private boolean isClearOfMoon(double starX, double starY) {
+        return Math.hypot(starX - MOON_CENTER_X, starY - MOON_CENTER_Y)
+                >= MOON_RADIUS + MOON_CLEARANCE;
     }
 
     @Override
     public void draw(GraphicsContext gc, double time) {
-        // 1. Цвет неба концепта: плотный глубокий ночной цвет
-        gc.setFill(Color.web("#0e1329"));
+        gc.setFill(SKY_COLOR);
         gc.fillRect(0, 0, width, height);
 
-        // 2. Звёзды (случайное положение, мерцание)
-        for (Star s : stars) {
-            double alpha = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(time * s.speed + s.phase));
+        drawStars(gc, time);
+        drawMoon(gc);
+    }
+
+    private void drawStars(GraphicsContext gc, double time) {
+        for (Star star : stars) {
+            double twinkle = 0.5 + 0.5 * Math.sin(time * star.speed() + star.phase());
+            double alpha = STAR_ALPHA_MIN + STAR_ALPHA_RANGE * twinkle;
             gc.setFill(Color.rgb(255, 255, 255, alpha));
-            gc.fillOval(s.x, s.y, s.size, s.size);
+            gc.fillOval(star.x(), star.y(), star.size(), star.size());
+        }
+    }
+
+    private void drawMoon(GraphicsContext gc) {
+        double moonX = MOON_CENTER_X - MOON_RADIUS;
+        double moonY = MOON_CENTER_Y - MOON_RADIUS;
+        double moonSize = MOON_RADIUS * 2;
+
+        gc.setFill(MOON_COLOR);
+        gc.fillOval(moonX, moonY, moonSize, moonSize);
+
+        gc.setStroke(MOON_OUTLINE);
+        gc.setLineWidth(MOON_OUTLINE_WIDTH);
+        gc.strokeOval(moonX, moonY, moonSize, moonSize);
+
+        drawCraters(gc);
+    }
+
+    private void drawCraters(GraphicsContext gc) {
+        gc.setFill(CRATER_COLOR);
+        for (Crater crater : CRATERS) {
+            gc.fillOval(MOON_CENTER_X + crater.dx(), MOON_CENTER_Y + crater.dy(),
+                    crater.width(), crater.height());
         }
 
-        // 3. Луна (fillOval) в фиксированном положении
-        gc.setFill(Color.web("#d7dadf"));
-        gc.fillOval(moonCenterX - moonRadius, moonCenterY - moonRadius, moonRadius * 2, moonRadius * 2);
-
-        // Контур Луны
-        gc.setStroke(Color.web("#10121a"));
-        gc.setLineWidth(1.2);
-        gc.strokeOval(moonCenterX - moonRadius, moonCenterY - moonRadius, moonRadius * 2, moonRadius * 2);
-
-        // Кратеры Луны как на эскизе (серо-голубоватые пятна)
-        gc.setFill(Color.web("#b8bdc7"));
-        gc.fillOval(moonCenterX - 9, moonCenterY - 11, 6.5, 6.0);
-        gc.fillOval(moonCenterX - 14, moonCenterY - 2, 7.5, 7.0);
-        gc.fillOval(moonCenterX - 6, moonCenterY + 4, 8.5, 8.0);
-        gc.fillOval(moonCenterX + 4, moonCenterY - 8, 6.0, 5.5);
-        gc.fillOval(moonCenterX + 5, moonCenterY + 2, 7.0, 6.5);
-        gc.fillOval(moonCenterX - 4, moonCenterY - 5, 4.5, 4.0);
-        gc.fillOval(moonCenterX + 9, moonCenterY + 9, 4.5, 4.0);
-
-        // Тонкие внутренние тени кратеров
-        gc.setStroke(Color.web("#9ea4b0"));
-        gc.setLineWidth(0.6);
-        gc.strokeOval(moonCenterX - 9, moonCenterY - 11, 6.5, 6.0);
-        gc.strokeOval(moonCenterX - 14, moonCenterY - 2, 7.5, 7.0);
-        gc.strokeOval(moonCenterX - 6, moonCenterY + 4, 8.5, 8.0);
-        gc.strokeOval(moonCenterX + 5, moonCenterY + 2, 7.0, 6.5);
+        gc.setStroke(CRATER_SHADOW);
+        gc.setLineWidth(CRATER_OUTLINE_WIDTH);
+        for (Crater crater : CRATERS) {
+            if (crater.outlined()) {
+                gc.strokeOval(MOON_CENTER_X + crater.dx(), MOON_CENTER_Y + crater.dy(),
+                        crater.width(), crater.height());
+            }
+        }
     }
 }

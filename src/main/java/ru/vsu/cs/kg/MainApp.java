@@ -6,97 +6,116 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
 import javafx.scene.transform.Scale;
 import javafx.stage.Stage;
 import ru.vsu.cs.kg.model.CityscapeModel;
 
-/**
- * Главное окно JavaFX приложения:
- * - Динамическое разрешение (окно можно растягивать, сворачивать, разворачивать на весь экран с сохранением пропорций)
- * - Интерактивность:
- *     - Клик ЛКМ по окну: переключает форму конкретного окна
- *     - Клавиша W или Клик ПКМ: переключает форму сразу всех окон в городе
- *     - Клавиша R: перегенерация города (новые окна, звёзды)
- */
 public class MainApp extends Application {
+    private static final String TITLE =
+            "Компьютерная графика - Хрущёвки (W - форма окон, R - регенерация, F11 - полный экран)";
+    private static final String FULLSCREEN_HINT =
+            "F11 или Esc — выйти из полноэкранного режима";
+
+    private final Scale fillScale = new Scale(1.0, 1.0, 0, 0);
     private CityscapeModel cityscapeModel;
-    private long startNanoTime;
+    private Canvas canvas;
+    private double canvasOffsetX;
+    private double canvasOffsetY;
 
     @Override
     public void start(Stage primaryStage) {
-        Canvas canvas = new Canvas(CityscapeModel.BASE_WIDTH, CityscapeModel.BASE_HEIGHT);
-        GraphicsContext gc = canvas.getGraphicsContext2D();
+        canvas = new Canvas(CityscapeModel.BASE_WIDTH, CityscapeModel.BASE_HEIGHT);
+        canvas.getTransforms().add(fillScale);
 
         cityscapeModel = new CityscapeModel();
-        startNanoTime = System.nanoTime();
+        startAnimation();
 
-        // Анимация
-        AnimationTimer animationTimer = new AnimationTimer() {
+        Scene scene = createScene();
+        configureInput(scene, primaryStage);
+        configureStage(primaryStage, scene);
+    }
+
+    private void startAnimation() {
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        long startNanoTime = System.nanoTime();
+
+        new AnimationTimer() {
             @Override
             public void handle(long currentNanoTime) {
                 double elapsedTime = (currentNanoTime - startNanoTime) / 1_000_000_000.0;
                 gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
                 cityscapeModel.draw(gc, elapsedTime);
             }
-        };
-        animationTimer.start();
-
-        // Панель с динамическим масштабированием (Scale Transform) под любой размер окна
-        Pane root = new Pane(canvas);
-        Scale scale = new Scale(1.0, 1.0, 0, 0);
-        canvas.getTransforms().add(scale);
-
-        Scene scene = new Scene(root, CityscapeModel.BASE_WIDTH, CityscapeModel.BASE_HEIGHT);
-
-        // Динамическое разрешение: масштабируем сцену при изменении размеров окна пользователем
-        scene.widthProperty().addListener((obs, oldW, newW) -> {
-            updateScale(scale, newW.doubleValue(), scene.getHeight(), canvas);
-        });
-        scene.heightProperty().addListener((obs, oldH, newH) -> {
-            updateScale(scale, scene.getWidth(), newH.doubleValue(), canvas);
-        });
-
-        // Интерактив: клик мыши для смены формы окна
-        scene.setOnMouseClicked(event -> {
-            double virtualX = event.getX() / scale.getX();
-            double virtualY = event.getY() / scale.getY();
-
-            if (event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
-                boolean hit = cityscapeModel.handleMouseClick(virtualX, virtualY);
-                if (!hit) {
-                    // Клик в пустоту меняет форму всех окон
-                    cityscapeModel.cycleAllWindows();
-                }
-            } else {
-                cityscapeModel.cycleAllWindows();
-            }
-        });
-
-        // Горячие клавиши
-        scene.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.W || event.getCode() == KeyCode.SPACE) {
-                // Переключить форму всех окон
-                cityscapeModel.cycleAllWindows();
-            } else if (event.getCode() == KeyCode.R) {
-                // Перегенерировать сцену
-                cityscapeModel.regenerate();
-            }
-        });
-
-        primaryStage.setTitle("Компьютерная графика - Хрущёвки (Клик по окну / 'W' - смена формы, 'R' - регенерация)");
-        primaryStage.setResizable(true); // Разрешено изменение размера окна
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        }.start();
     }
 
-    private void updateScale(Scale scale, double windowW, double windowH, Canvas canvas) {
+    private Scene createScene() {
+        Pane root = new Pane(canvas);
+        root.setStyle("-fx-background-color: black;");
+        Scene scene = new Scene(root, CityscapeModel.BASE_WIDTH, CityscapeModel.BASE_HEIGHT);
+        scene.widthProperty().addListener((obs, oldW, newW) ->
+                updateScale(newW.doubleValue(), scene.getHeight()));
+        scene.heightProperty().addListener((obs, oldH, newH) ->
+                updateScale(scene.getWidth(), newH.doubleValue()));
+        return scene;
+    }
+
+    private void configureInput(Scene scene, Stage stage) {
+        scene.setOnMouseClicked(event -> handleMouseClick(event.getButton(), event.getX(), event.getY()));
+
+        scene.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.W || event.getCode() == KeyCode.SPACE) {
+                cityscapeModel.cycleAllWindows();
+            } else if (event.getCode() == KeyCode.R) {
+                cityscapeModel.regenerate();
+            } else if (event.getCode() == KeyCode.F11) {
+                stage.setFullScreen(!stage.isFullScreen());
+            }
+        });
+    }
+
+    private void handleMouseClick(MouseButton button, double sceneX, double sceneY) {
+        if (button != MouseButton.PRIMARY) {
+            cityscapeModel.cycleAllWindows();
+            return;
+        }
+
+        double scale = fillScale.getX();
+        double virtualX = (sceneX - canvasOffsetX) / scale;
+        double virtualY = (sceneY - canvasOffsetY) / scale;
+
+        if (virtualX < 0 || virtualX > CityscapeModel.BASE_WIDTH
+                || virtualY < 0 || virtualY > CityscapeModel.BASE_HEIGHT) {
+            return;
+        }
+
+        if (!cityscapeModel.handleMouseClick(virtualX, virtualY)) {
+            cityscapeModel.cycleAllWindows();
+        }
+    }
+
+    private void configureStage(Stage stage, Scene scene) {
+        stage.setTitle(TITLE);
+        stage.setResizable(false);
+        stage.setFullScreenExitHint(FULLSCREEN_HINT);
+        stage.setScene(scene);
+        stage.show();
+    }
+
+    private void updateScale(double windowW, double windowH) {
         if (windowW <= 0 || windowH <= 0) return;
-        double scaleX = windowW / CityscapeModel.BASE_WIDTH;
-        double scaleY = windowH / CityscapeModel.BASE_HEIGHT;
-        // Масштабируем равномерно, чтобы картинка красиво заполняла окно
-        scale.setX(scaleX);
-        scale.setY(scaleY);
+
+        double scale = Math.min(windowW / CityscapeModel.BASE_WIDTH,
+                windowH / CityscapeModel.BASE_HEIGHT);
+        fillScale.setX(scale);
+        fillScale.setY(scale);
+
+        canvasOffsetX = (windowW - CityscapeModel.BASE_WIDTH * scale) / 2.0;
+        canvasOffsetY = (windowH - CityscapeModel.BASE_HEIGHT * scale) / 2.0;
+        canvas.setTranslateX(canvasOffsetX);
+        canvas.setTranslateY(canvasOffsetY);
     }
 
     public static void main(String[] args) {

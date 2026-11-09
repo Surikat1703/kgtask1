@@ -2,210 +2,228 @@ package ru.vsu.cs.kg.model;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
+import javafx.scene.shape.ArcType;
 
-/**
- * Окружение переднего плана:
- * - Тротуарная плитка
- * - Бордюр и проезжая часть с разметкой
- * - Проезды во дворы: простые аккуратные асфальтовые полосы между домами
- *   (без наслоений и двойной отрисовки)
- * - Скамейка и урны
- */
+import java.util.List;
+
 public class ForegroundEnvironment implements Drawable {
+    private static final Color SIDEWALK_COLOR = Color.web("#8e9196");
+    private static final Color TILE_SEAM_COLOR = Color.web("#606368");
+    private static final Color CURB_COLOR = Color.web("#505359");
+    private static final Color ROAD_COLOR = Color.web("#303236");
+    private static final Color ROAD_EDGE_COLOR = Color.web("#141414");
+    private static final Color DRIVEWAY_COLOR = Color.web("#42454a");
+    private static final Color DRIVEWAY_EDGE_COLOR = Color.web("#70747a");
+    private static final Color BENCH_COLOR = Color.web("#3f9935");
+    private static final Color BUSH_FILL_COLOR = Color.web("#3f7a3a");
+    private static final Color BUSH_STROKE_COLOR = Color.web("#244a26");
+    private static final Color URN_BODY_COLOR = Color.web("#3d4540");
+    private static final Color URN_LID_COLOR = Color.web("#2f3632");
+    private static final Color URN_BASE_COLOR = Color.web("#23272a");
+
+    private static final double CURB_HEIGHT = 5.0;
+    private static final double TILE_ROW_START = 7.0;
+    private static final double TILE_ROW_STEP = 7.5;
+    private static final double TILE_DIAGONAL_START = -10.0;
+    private static final double TILE_DIAGONAL_STEP = 15.0;
+    private static final double TILE_DIAGONAL_SHIFT = 18.0;
+
+    private static final double ROAD_MARK_Y_OFFSET = 30.0;
+    private static final double ROAD_MARK_START = 10.0;
+    private static final double ROAD_MARK_LENGTH = 65.0;
+    private static final double ROAD_MARK_STEP = 95.0;
+    private static final double ROAD_BOTTOM_MARGIN = 8.0;
+
+    private static final double BENCH_X = 505.0;
+    private static final double BENCH_TOP_OFFSET = 4.0;
+    private static final double BENCH_WIDTH = 38.0;
+    private static final double[] URN_XS = {88, 385, 606, 698};
+    private static final double URN_BASE_OFFSET = 19.0;
+    private static final double[][] BUSH_POSITIONS = {{120, 14}, {402, 15}, {620, 14}, {780, 15}};
+
     private final double width;
     private final double height;
     private final double sidewalkTopY;
     private final double roadTopY;
+    private final List<Driveway> driveways;
 
-    // Координаты щелей между домами (проезды во дворы)
-    // Левый проезд: дом1 заканчивается x=149, дом2 начинается x=184
-    private static final double LEFT_GAP_X1 = 149.0;
-    private static final double LEFT_GAP_X2 = 184.0;
-    // Правый проезд: дом4 заканчивается x=855, дом5 начинается x=891
-    private static final double RIGHT_GAP_X1 = 855.0;
-    private static final double RIGHT_GAP_X2 = 891.0;
-
-    public ForegroundEnvironment(double width, double height, double sidewalkTopY, double roadTopY) {
+    public ForegroundEnvironment(double width,
+                                 double height,
+                                 double sidewalkTopY,
+                                 double roadTopY,
+                                 List<Driveway> driveways) {
         this.width = width;
         this.height = height;
         this.sidewalkTopY = sidewalkTopY;
         this.roadTopY = roadTopY;
+        this.driveways = List.copyOf(driveways);
     }
 
     @Override
     public void draw(GraphicsContext gc, double time) {
-        // 1. Тротуарная зона
-        gc.setFill(Color.web("#8e9196"));
-        gc.fillRect(0, sidewalkTopY, width, roadTopY - sidewalkTopY);
+        drawSidewalk(gc);
+        drawDriveways(gc);
+        drawCurbAndRoad(gc);
+        drawBushes(gc);
+        drawStreetFurniture(gc);
+    }
 
-        // Верхняя граница тротуара
+    private void drawSidewalk(GraphicsContext gc) {
+        gc.setFill(SIDEWALK_COLOR);
+        gc.fillRect(0, sidewalkTopY, width, roadTopY - sidewalkTopY);
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(2.0);
         gc.strokeLine(0, sidewalkTopY, width, sidewalkTopY);
 
-        // Сетка плитки тротуара (пропускаем зоны проездов, чтобы не наслаивать)
-        gc.setStroke(Color.web("#606368"));
+        drawTileGrid(gc);
+    }
+
+    private void drawTileGrid(GraphicsContext gc) {
+        gc.setStroke(TILE_SEAM_COLOR);
         gc.setLineWidth(1.0);
 
-        // Горизонтальные линии
-        for (double y = sidewalkTopY + 7; y < roadTopY; y += 7.5) {
-            // Левая часть (до левого проезда)
-            gc.strokeLine(0, y, LEFT_GAP_X1, y);
-            // Между проездами
-            gc.strokeLine(LEFT_GAP_X2, y, RIGHT_GAP_X1, y);
-            // Правая часть (после правого проезда)
-            gc.strokeLine(RIGHT_GAP_X2, y, width, y);
+        for (double y = sidewalkTopY + TILE_ROW_START; y < roadTopY; y += TILE_ROW_STEP) {
+            double from = 0;
+            for (Driveway driveway : driveways) {
+                gc.strokeLine(from, y, driveway.x1(), y);
+                from = driveway.x2();
+            }
+            gc.strokeLine(from, y, width, y);
         }
 
-        // Диагональные швы плитки (пропускаем зоны проездов)
-        for (double x = -10; x < width + 40; x += 15) {
-            double bottomX = x - 18;
-            // Пропускаем если попадает в зону проезда
-            boolean inLeftGap = (x >= LEFT_GAP_X1 - 5 && x <= LEFT_GAP_X2 + 5);
-            boolean inRightGap = (x >= RIGHT_GAP_X1 - 5 && x <= RIGHT_GAP_X2 + 5);
-            if (inLeftGap || inRightGap) continue;
-            gc.strokeLine(x, sidewalkTopY, bottomX, roadTopY);
+        for (double x = TILE_DIAGONAL_START; x < width + 40; x += TILE_DIAGONAL_STEP) {
+            if (insideDriveway(x)) {
+                continue;
+            }
+            gc.strokeLine(x, sidewalkTopY, x - TILE_DIAGONAL_SHIFT, roadTopY);
         }
+    }
 
-        // 2. Проезды во дворы — простой тёмный асфальт в щели между домами
-        drawDriveway(gc, LEFT_GAP_X1, LEFT_GAP_X2);
-        drawDriveway(gc, RIGHT_GAP_X1, RIGHT_GAP_X2);
+    private void drawDriveways(GraphicsContext gc) {
+        for (Driveway driveway : driveways) {
+            drawDriveway(gc, driveway);
+        }
+    }
 
-        // 3. Бордюрный камень вдоль проезжей части
-        gc.setFill(Color.web("#505359"));
-        gc.fillRect(0, roadTopY, width, 5);
+    private boolean insideDriveway(double x) {
+        for (Driveway driveway : driveways) {
+            if (x >= driveway.x1() - 5 && x <= driveway.x2() + 5) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void drawDriveway(GraphicsContext gc, Driveway driveway) {
+        gc.setFill(DRIVEWAY_COLOR);
+        gc.fillRect(driveway.x1(), sidewalkTopY, driveway.width(), roadTopY - sidewalkTopY);
+
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(1.8);
+        gc.strokeLine(driveway.x1(), sidewalkTopY, driveway.x1(), roadTopY);
+        gc.strokeLine(driveway.x2(), sidewalkTopY, driveway.x2(), roadTopY);
+
+        gc.setFill(DRIVEWAY_EDGE_COLOR);
+        gc.fillRect(driveway.x1(), sidewalkTopY, 3, roadTopY - sidewalkTopY);
+        gc.fillRect(driveway.x2() - 3, sidewalkTopY, 3, roadTopY - sidewalkTopY);
+    }
+
+    private void drawCurbAndRoad(GraphicsContext gc) {
+        gc.setFill(CURB_COLOR);
+        gc.fillRect(0, roadTopY, width, CURB_HEIGHT);
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1.6);
         gc.strokeLine(0, roadTopY, width, roadTopY);
-        gc.strokeLine(0, roadTopY + 5, width, roadTopY + 5);
+        gc.strokeLine(0, roadTopY + CURB_HEIGHT, width, roadTopY + CURB_HEIGHT);
 
-        // 4. Проезжая часть
-        gc.setFill(Color.web("#303236"));
-        gc.fillRect(0, roadTopY + 5, width, height - (roadTopY + 5));
+        gc.setFill(ROAD_COLOR);
+        gc.fillRect(0, roadTopY + CURB_HEIGHT, width, height - (roadTopY + CURB_HEIGHT));
 
-        // Белая прерывистая разметка по центру дороги (примитив прямая линия + штрихи)
         gc.setStroke(Color.WHITE);
         gc.setLineWidth(4.0);
-        double markY = roadTopY + 30;
-        for (double dx = 10; dx < width; dx += 95) {
-            gc.strokeLine(dx, markY, dx + 65, markY);
+        double markY = roadTopY + ROAD_MARK_Y_OFFSET;
+        for (double dx = ROAD_MARK_START; dx < width; dx += ROAD_MARK_STEP) {
+            gc.strokeLine(dx, markY, dx + ROAD_MARK_LENGTH, markY);
         }
 
-        // Нижний край дороги
-        gc.setStroke(Color.web("#141414"));
+        gc.setStroke(ROAD_EDGE_COLOR);
         gc.setLineWidth(2.5);
-        gc.strokeLine(0, height - 8, width, height - 8);
+        gc.strokeLine(0, height - ROAD_BOTTOM_MARGIN, width, height - ROAD_BOTTOM_MARGIN);
+    }
 
-        // 5. Декоративные кусты/холмики (кривые Безье — обязательный примитив)
-        drawBush(gc, 120, sidewalkTopY + 14);
-        drawBush(gc, 402, sidewalkTopY + 15);
-        drawBush(gc, 620, sidewalkTopY + 14);
-        drawBush(gc, 780, sidewalkTopY + 15);
-
-        // 6. Скамейка
-        drawBench(gc, 505, sidewalkTopY + 12);
-
-        // 7. Урны для мусора
-        double[] urnXs = {88, 385, 606, 698};
-        for (double ux : urnXs) {
-            drawUrn(gc, ux, sidewalkTopY + 10);
+    private void drawBushes(GraphicsContext gc) {
+        for (double[] bush : BUSH_POSITIONS) {
+            drawBush(gc, bush[0], sidewalkTopY + bush[1]);
         }
     }
 
-    /**
-     * Рисует аккуратный проезд во двор — просто тёмная полоса асфальта
-     * от верхней границы тротуара до проезжей части, без наслоений.
-     */
-    private void drawDriveway(GraphicsContext gc, double x1, double x2) {
-        double driveW = x2 - x1;
+    private void drawBush(GraphicsContext gc, double cx, double cy) {
+        gc.setFill(BUSH_FILL_COLOR);
+        gc.beginPath();
+        bushPath(gc, cx, cy);
+        gc.fill();
 
-        // Тёмный асфальт проезда (от тротуара до дороги)
-        gc.setFill(Color.web("#42454a"));
-        gc.fillRect(x1, sidewalkTopY, driveW, roadTopY - sidewalkTopY);
-
-        // Чёрные боковые границы
-        gc.setStroke(Color.BLACK);
-        gc.setLineWidth(1.8);
-        gc.strokeLine(x1, sidewalkTopY, x1, roadTopY);
-        gc.strokeLine(x2, sidewalkTopY, x2, roadTopY);
-
-        // Светлые бордюрные стенки по бокам (как срезы поребрика вглубь)
-        gc.setFill(Color.web("#70747a"));
-        gc.fillRect(x1, sidewalkTopY, 3, roadTopY - sidewalkTopY);
-        gc.fillRect(x2 - 3, sidewalkTopY, 3, roadTopY - sidewalkTopY);
+        gc.setStroke(BUSH_STROKE_COLOR);
+        gc.setLineWidth(1.2);
+        gc.beginPath();
+        bushPath(gc, cx, cy);
+        gc.stroke();
     }
 
-    /**
-     * Рисует декоративный куст/холмик на тротуаре (примитив — кривые Безье).
-     * Как на концепте — маленькие коричневатые кустики/насыпи.
-     */
-    private void drawBush(GraphicsContext gc, double cx, double cy) {
-        gc.setFill(Color.web("#6b4226"));
-        gc.beginPath();
+    private void bushPath(GraphicsContext gc, double cx, double cy) {
         gc.moveTo(cx - 12, cy + 5);
         gc.bezierCurveTo(cx - 10, cy - 6, cx - 2, cy - 8, cx, cy - 3);
         gc.bezierCurveTo(cx + 2, cy - 8, cx + 10, cy - 6, cx + 12, cy + 5);
         gc.closePath();
-        gc.fill();
+    }
 
-        gc.setStroke(Color.web("#4a2e18"));
-        gc.setLineWidth(1.2);
-        gc.beginPath();
-        gc.moveTo(cx - 12, cy + 5);
-        gc.bezierCurveTo(cx - 10, cy - 6, cx - 2, cy - 8, cx, cy - 3);
-        gc.bezierCurveTo(cx + 2, cy - 8, cx + 10, cy - 6, cx + 12, cy + 5);
-        gc.stroke();
+    private void drawStreetFurniture(GraphicsContext gc) {
+        drawBench(gc, BENCH_X, sidewalkTopY + BENCH_TOP_OFFSET);
+        for (double urnX : URN_XS) {
+            drawUrn(gc, urnX, sidewalkTopY + URN_BASE_OFFSET);
+        }
     }
 
     private void drawBench(GraphicsContext gc, double x, double y) {
-        double w = 38;
-        double h = 15;
-
-        // Чёрные ножки
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(2.0);
-        gc.strokeLine(x + 3, y + h, x + 5, y + 2);
-        gc.strokeLine(x + w - 3, y + h, x + w - 5, y + 2);
-        gc.strokeLine(x + 4, y + h - 2, x + w - 4, y + h - 2);
+        gc.strokeLine(x + 3, y + 15, x + 5, y + 2);
+        gc.strokeLine(x + BENCH_WIDTH - 3, y + 15, x + BENCH_WIDTH - 5, y + 2);
+        gc.strokeLine(x + 4, y + 13, x + BENCH_WIDTH - 4, y + 13);
 
-        // Зелёные доски спинки и сиденья
-        gc.setFill(Color.web("#3f9935"));
+        gc.setFill(BENCH_COLOR);
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1.2);
-
-        gc.fillRect(x + 2, y, w - 4, 3.5);
-        gc.strokeRect(x + 2, y, w - 4, 3.5);
-
-        gc.fillRect(x, y + 6, w, 3.5);
-        gc.strokeRect(x, y + 6, w, 3.5);
+        gc.fillRect(x + 2, y, BENCH_WIDTH - 4, 3.5);
+        gc.strokeRect(x + 2, y, BENCH_WIDTH - 4, 3.5);
+        gc.fillRect(x, y + 6, BENCH_WIDTH, 3.5);
+        gc.strokeRect(x, y + 6, BENCH_WIDTH, 3.5);
     }
 
-    private void drawUrn(GraphicsContext gc, double x, double y) {
-        double w = 16;
-        double h = 20;
+    private void drawUrn(GraphicsContext gc, double cx, double baseY) {
+        double bodyWidth = 11.0;
+        double bodyHeight = 11.5;
+        double x = cx - bodyWidth / 2.0;
+        double bodyTop = baseY - bodyHeight;
 
-        // Ножка урны
+        gc.setFill(URN_BODY_COLOR);
+        gc.fillRoundRect(x, bodyTop, bodyWidth, bodyHeight, 2.5, 2.5);
+
+        double lidWidth = bodyWidth + 1.6;
+        double lidHeight = 9.0;
+        double lidY = bodyTop - 4.0;
+        gc.setFill(URN_LID_COLOR);
+        gc.fillArc(x - 0.8, lidY, lidWidth, lidHeight, 0, 180, ArcType.CHORD);
+
+        gc.setFill(Color.BLACK);
+        gc.fillRect(x + 1.8, bodyTop + 1.2, bodyWidth - 3.6, 1.8);
+
         gc.setStroke(Color.BLACK);
-        gc.setLineWidth(2.2);
-        gc.strokeLine(x + w / 2.0, y + h, x + w / 2.0, y + h + 6);
+        gc.setLineWidth(0.9);
+        gc.strokeRoundRect(x, bodyTop, bodyWidth, bodyHeight, 2.5, 2.5);
+        gc.strokeArc(x - 0.8, lidY, lidWidth, lidHeight, 0, 180, ArcType.CHORD);
 
-        // Корпус урны
-        gc.setFill(Color.web("#5c6169"));
-        gc.fillRect(x, y, w, h);
-        gc.setStroke(Color.BLACK);
-        gc.setLineWidth(1.4);
-        gc.strokeRect(x, y, w, h);
-
-        // Полосы жёсткости
-        gc.setLineWidth(0.8);
-        gc.strokeLine(x + 2, y + 4, x + w - 2, y + 4);
-        gc.strokeLine(x + 2, y + h - 4, x + w - 2, y + h - 4);
-
-        // Надпись «УРНА» (текстовая надпись — обязательный примитив)
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Arial", FontWeight.BOLD, 4.5));
-        gc.fillText("УРНА", x + 1.8, y + 12);
+        gc.setFill(URN_BASE_COLOR);
+        gc.fillRect(x - 0.5, baseY - 1.2, bodyWidth + 1.0, 1.2);
     }
 }

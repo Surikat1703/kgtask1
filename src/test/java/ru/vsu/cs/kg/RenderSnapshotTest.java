@@ -13,9 +13,6 @@ import ru.vsu.cs.kg.model.CityscapeModel;
 import javax.imageio.ImageIO;
 import java.io.File;
 
-/**
- * Тестовая утилита для рендеринга кадра в PNG файл.
- */
 public class RenderSnapshotTest extends javafx.application.Application {
     @Override
     public void start(Stage stage) throws Exception {
@@ -25,14 +22,12 @@ public class RenderSnapshotTest extends javafx.application.Application {
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
         CityscapeModel model = new CityscapeModel();
-        // Рендерим кадр на 2-й секунде (когда машина уже выехала на дорогу)
         model.draw(gc, 2.0);
 
         StackPane root = new StackPane(canvas);
         Scene scene = new Scene(root, w, h);
         stage.setScene(scene);
 
-        // Сохраняем снимок в файл
         WritableImage image = canvas.snapshot(null, null);
         File outputFile = new File("preview_snapshot.png");
         ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", outputFile);
