@@ -11,7 +11,6 @@ public class ForegroundEnvironment implements Drawable {
     private static final Color TILE_SEAM_COLOR = Color.web("#606368");
     private static final Color CURB_COLOR = Color.web("#505359");
     private static final Color ROAD_COLOR = Color.web("#303236");
-    private static final Color ROAD_EDGE_COLOR = Color.web("#141414");
     private static final Color DRIVEWAY_COLOR = Color.web("#42454a");
     private static final Color DRIVEWAY_EDGE_COLOR = Color.web("#70747a");
     private static final Color BENCH_COLOR = Color.web("#3f9935");
@@ -28,11 +27,11 @@ public class ForegroundEnvironment implements Drawable {
     private static final double TILE_DIAGONAL_STEP = 15.0;
     private static final double TILE_DIAGONAL_SHIFT = 18.0;
 
-    private static final double ROAD_MARK_Y_OFFSET = 30.0;
+    private static final double ROAD_MARK_Y_OFFSET = 13.0;
     private static final double ROAD_MARK_START = 10.0;
-    private static final double ROAD_MARK_LENGTH = 65.0;
-    private static final double ROAD_MARK_STEP = 95.0;
-    private static final double ROAD_BOTTOM_MARGIN = 8.0;
+    private static final double ROAD_MARK_LENGTH = 26.0;
+    private static final double ROAD_MARK_STEP = 52.0;
+    private static final double ROAD_MARK_WIDTH = 2.0;
 
     private static final double BENCH_X = 505.0;
     private static final double BENCH_TOP_OFFSET = 4.0;
@@ -140,15 +139,11 @@ public class ForegroundEnvironment implements Drawable {
         gc.fillRect(0, roadTopY + CURB_HEIGHT, width, height - (roadTopY + CURB_HEIGHT));
 
         gc.setStroke(Color.WHITE);
-        gc.setLineWidth(4.0);
+        gc.setLineWidth(ROAD_MARK_WIDTH);
         double markY = roadTopY + ROAD_MARK_Y_OFFSET;
         for (double dx = ROAD_MARK_START; dx < width; dx += ROAD_MARK_STEP) {
             gc.strokeLine(dx, markY, dx + ROAD_MARK_LENGTH, markY);
         }
-
-        gc.setStroke(ROAD_EDGE_COLOR);
-        gc.setLineWidth(2.5);
-        gc.strokeLine(0, height - ROAD_BOTTOM_MARGIN, width, height - ROAD_BOTTOM_MARGIN);
     }
 
     private void drawBushes(GraphicsContext gc) {
